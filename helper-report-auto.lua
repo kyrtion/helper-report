@@ -1778,6 +1778,7 @@ function sampev.onServerMessage(color, text)
 		end
 	elseif lockDefine and color == -1439485014 and text == 'Список жалоб пуст' then
 		lockDefine = false
+		intCountReport = 0
 	end
 
 	-- (-270686209) || [A] Snegovik_Ya[1] ответил игроку Vadim_Rampage[7]: {FFFFFF}test
