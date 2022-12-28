@@ -1,6 +1,6 @@
---- Хейтеры, как вы заебали ---
+--- Хейтеры, как вы меня заЫбали, идите нахЫй! ---
 local version_str = '3.0'
-local version_json = '1.0'
+local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
 script_description('ВКонтакте: @kyrtion | Telegram: @kyrtion | Discord: kyrtion#7310. Специально для проекта Russia RP (Moscow)')
@@ -42,12 +42,29 @@ function json(filePath)
 	return f
 end
 
+function sl(floatoffset_from_start_x, floatspacing)
+	imgui.SameLine(floatoffset_from_start_x,floatspacing)
+end
+
 local update_state = false
 local checkVerify = false
 local lockVerify = false
 local lockFailed = false
 local newVersion = 'None'
 local oldVersion = 'None'
+local boolEnableAutoUpdate = true
+
+local target = false
+local keys = {
+	["onfoot"] = {},
+	["vehicle"] = {}
+}
+
+local cursorLock = false
+local mainCursor = false
+local reconCursor = false
+local menuCursor = true
+local keycapCursor = false
 
 --! origin/main
 local update_url = 'https://raw.githubusercontent.com/kyrtion/helper-report/main/version_hr.ini'
@@ -72,49 +89,6 @@ function explode_argb(argb)
 	return a, r, g, b
 end
 
-function argb_to_rgba(argb)
-	local a, r, g, b = explode_argb(argb)
-	return join_argb(r, g, b, a)
-end
-
-function hex2rgb(hex)
-    hex = hex:gsub("#","")
-    return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6))
-end
-
-function hex2rgba(hex)
-    hex = hex:gsub("#","")
-    return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6)), tonumber("0x"..hex:sub(7,8))
-end
-
-function rgb2hex(rgb)
-	local hexadecimal = '#'
-
-	for key = 1, #rgb do
-	    local value = rgb[key] 
-		local hex = ''
-
-		while(value > 0)do
-			local index = math.fmod(value, 16) + 1
-			value = math.floor(value / 16)
-			hex = string.sub('0123456789ABCDEF', index, index) .. hex			
-		end
-
-		if(string.len(hex) == 0)then
-			hex = '00'
-		elseif(string.len(hex) == 1)then
-			hex = '0' .. hex
-		end
-		hexadecimal = hexadecimal .. hex
-	end
-
-	return hexadecimal
-end
-
-function rgba2hex(rgb)
-   return rgb2hex (rgb) 
-end
-
 function intToHex(int)
     return '{'..string.sub(bit.tohex(int), 3, 8)..'}'
 end
@@ -126,10 +100,14 @@ if not doesDirectoryExist('moonloader/config/helper-report') then createDirector
 
 local settingsJson = getWorkingDirectory()..'/config/helper-report/setting.json'
 local settingsList = {}
-local imguiJson = {}
+local imguiList = {}
 
+-- windows
 local mainWindow = new.bool(false)
 local menuWindow = new.bool(false)
+local reconWindow = new.bool(false)
+local keycapWindow = new.bool(false)
+
 local selectPm = new.bool(true)
 local statusSkip = new.bool(false)
 local reportInput = new.char[140]('')
@@ -137,12 +115,14 @@ local reportInputAuthor = new.char[140]('')
 local reportInputID = new.char[140]('')
 local listReport = {}
 local statusRecon = false
+local selectedAZ = -1
 local lockDefine = false
 local lockWindow = false
 local closePop = false
 local selectedIntButton = -1
 local sizeButtonPopup = imgui.ImVec2(170,0)
 local tab = new.int(1)
+local reconPlayerTip, reconPlayerNick, reconId, blockId, target, statusReconButton = 'None', 'None', -1, -1, -1, false
 
 local slist = {
 	title = '',
@@ -188,18 +168,18 @@ local defaultJson = {
 	settings2 = {
 		answerAuthor = 			'Уважаемый игрок, сейчас попробую вам помочь.',
 		answerAuthorId = 		'Уважаемый игрок, начинаю работу по вашей жалобе.',
-		colorAdminChatText = 	{r = 82, 	g = 152, 	b = 250, 	a = 255},
-		colorAdminChatNick = 	{r = 82, 	g = 152, 	b = 250, 	a = 255},
-		colorAntiCheat = 		{r = 176, 	g = 26, 	b = 74, 	a = 255},
-		colorOtherPrefixA = 	{r = 86, 	g = 86, 	b = 86, 	a = 255},
-		colorPunishment = 		{r = 148, 	g = 194, 	b = 43, 	a = 255},
-		colorPMNick = 			{r = 224, 	g = 160, 	b = 22, 	a = 255},
-		colorPMText = 			{r = 224, 	g = 160, 	b = 22, 	a = 255},
-		colorReportNick = 		{r = 224, 	g = 80,		b = 22,		a = 255},
-		colorReportText = 		{r = 224, 	g = 126,	b = 88,		a = 255},
+		colorAdminChatNick = 	{r = 85, 	g = 255, 	b = 97, 	a = 255},
+		colorAdminChatText = 	{r = 185, 	g = 255, 	b = 190, 	a = 255},
+		colorAntiCheat = 		{r = 159, 	g = 0, 		b = 52, 	a = 255},
+		colorOtherPrefixA = 	{r = 90, 	g = 90, 	b = 90, 	a = 255},
+		colorPunishment = 		{r = 254, 	g = 57, 	b = 57, 	a = 255},
+		colorPMNick = 			{r = 255, 	g = 223, 	b = 38, 	a = 255},
+		colorPMText = 			{r = 255, 	g = 255, 	b = 185, 	a = 255},
+		colorReportNick = 		{r = 255, 	g = 90,		b = 25,		a = 255},
+		colorReportText = 		{r = 255, 	g = 205,	b = 185,	a = 255},
 		boolAdminChatText = 	true,
 		boolAdminChatNick = 	true,
-		boolAntiCheat = 		false,
+		boolAntiCheat = 		true,
 		boolOtherPrefixA = 		false,
 		boolPunishment = 		false,
 		boolPMText = 			true,
@@ -207,8 +187,8 @@ local defaultJson = {
 		boolReportNick = 		true,
 		boolReportText =		true,
 		boolFormatAdminChat =	true,
-		boolFullScreenAnswers =	true,
-		textFormatAdminChat =	'[A] @prefix @nick[@id]: @msg',
+		boolFullScreenAnswers =	false,
+		textFormatAdminChat =	'[@prefix] @nick[@id]: @msg',
 		positionX = 			20.0,
 		positionY = 			450.0
 	},
@@ -216,7 +196,7 @@ local defaultJson = {
 		{
 			title = 'Телепортировать',
 			command = {
-				'/pm @aid Телепортирую.',
+				'/pm @aid Телепортирую',
 				'/goto @aid'
 			},
 			closePopup = true,
@@ -248,7 +228,7 @@ local defaultJson = {
 			title = 'Передать в /a',
 			command = {
 				'/pm @aid Передам.',
-				'/a Репорт от @anick[@aid]: @msg'
+				'/a [Репорт] @anick[@aid]: @msg'
 			},
 			closePopup = true,
 			startReconAuthor = false,
@@ -276,14 +256,14 @@ function save()
 end
 
 if settingsList.version == nil or settingsList.version ~= version_json then
-	alert((settingsList.version or 'nil')..', '..version_json)
-	alert('В настройке не найдено новый часть, зарегистрировано по умолчанию')
+	alert(tostring(settingsList.version)..', '..version_json)
+	alert('В настройке не найдено новый часть, зарегистрировано по умолчанию в конфиге')
 	settingsList.settings2 = defaultJson.settings2
 	settingsList.version = defaultJson.version
 	save()
 end
 
-local imguiJson = {
+local imguiList = {
 	settings = {
 		closeReport = new.bool(settingsList.settings.closeReport),
 		closeIfLeaved = new.bool(settingsList.settings.closeIfLeaved), -- кроме последний репорт
@@ -327,32 +307,42 @@ local imguiJson = {
 		boolFullScreenAnswers = new.bool(settingsList.settings2.boolFullScreenAnswers)
 	}
 }
+
 local posX, posY = settingsList.settings2.positionX, settingsList.settings2.positionY
--- local imguiJson = templateImgui
--- local defaultImguiJson = templateImgui
 
 imgui.OnInitialize(function()
 	imgui.GetIO().IniFilename = nil
+	sW, sH = getScreenResolution()
+	u32 = imgui.ColorConvertFloat4ToU32
+
 	imgui.DarkTheme()
 end)
 
 local mainFrame = imgui.OnFrame(
-	function() return mainWindow[0] end,
+	function() return mainWindow[0] and not isGamePaused() end,
 	function(self)
-		if not lockWindow then
-			lockWindow = true
-			self.HideCursor = true
-		elseif not mainWindow[0] and lockWindow then
-			self.HideCursor = true
-		end
 
-		if (isKeyJustPressed(0xA4) or isKeyJustPressed(0x59)) and mainWindow[0] and not sampIsDialogActive() and not sampIsChatInputActive() and not isPauseMenuActive() and not isSampfuncsConsoleActive() then
-			self.HideCursor = not self.HideCursor
+		-- if not lockWindow then
+		-- 	lockWindow = true
+		-- 	self.HideCursor = true
+		-- elseif not mainWindow[0] and lockWindow then
+		-- 	self.HideCursor = true
+		-- end
+		-- if (isKeyJustPressed(0xA4) or isKeyJustPressed(0x59)) and (mainWindow[0] or reconWindow[0]) and not sampIsDialogActive() and not sampIsChatInputActive() and not isPauseMenuActive() and not isSampfuncsConsoleActive() then
+		-- 	self.HideCursor = not self.HideCursor
+		-- end
+		-- if not lockWindow and mainWindow[0] then
+		-- 	lockWindow = true
+		-- 	self.HideCursor = true
+		-- end
+
+		if not mainCursor then
+			mainCursor = true
+			self.HideCursor = true
 		end
 
 		local resX, resY = getScreenResolution()
 		local sizeX, sizeY = 505, 160
-		-- imgui.SetNextWindowPos(imgui.ImVec2(posX, posY), imgui.Cond.Always, imgui.ImVec2(0, 0))
 		imgui.SetNextWindowPos(imgui.ImVec2(posX, posY), imgui.Cond.Always)
 		imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.Always)
 		if imgui.Begin('##MainMain', mainWindow, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoFocusOnAppearing) then
@@ -402,9 +392,9 @@ local mainFrame = imgui.OnFrame(
 				imgui.SetCursorPosX(306)
 				if imgui.Button(u8'POS', imgui.ImVec2(42, 0)) then
 					lua_thread.create(function ()
-						showCursor(true, true)
+						sampSetCursorMode(3)
 						checkCursor = true
-						sampSetCursorMode(4)
+						-- sampSetCursorMode(4)
 						alert('Нажмите "SPACE" чтобы сохранить позицию')
 						while checkCursor do
 							local cX, cY = getCursorPos()
@@ -413,7 +403,7 @@ local mainFrame = imgui.OnFrame(
 								sampSetCursorMode(0)
 								settingsList.settings2.positionX, settingsList.settings2.positionY = posX, posY
 								checkCursor = false
-								showCursor(false, false)
+								-- showCursor(false)
 								save()
 								alert('Сохранено')
 							end
@@ -473,7 +463,7 @@ local mainFrame = imgui.OnFrame(
 					imgui.SetCursorPosY(sizeY - 29)
 					if sampIsPlayerConnected(listReport[1].id) and sampGetPlayerNickname(listReport[1].id) == listReport[1].nick then
 						if imgui.Button(u8'RE: Автор', imgui.ImVec2(120, 0)) then
-							if settingsList.settings.hideCursorIfRecon then self.HideCursor = true end
+							if settingsList.settings.hideCursorIfRecon then sampSetCursorMode(0) end
 							if settingsList.settings.autoSelectSms then selectPm[0] = false end
 							alert('Вы наблюдаете на '..sampGetPlayerNickname(listReport[1].id)..'['..listReport[1].id..']')
 							sampSendChat('/re '..listReport[1].id)
@@ -498,7 +488,7 @@ local mainFrame = imgui.OnFrame(
 							if #listReport ~= 0 and #listReport[1].msg ~= 0 and listReport[1].msg:find('(%d+)') then
 								if sampIsPlayerConnected(reId) and not sampIsPlayerNpc(reId) then
 									if settingsList.settings.autoSelectSms then selectPm[0] = false end
-									if settingsList.settings.hideCursorIfRecon then self.HideCursor = true end
+									if settingsList.settings.hideCursorIfRecon then sampSetCursorMode(0) end
 									alert('Вы наблюдаете на '..sampGetPlayerNickname(reId)..'['..reId..']')
 									sampSendChat('/re '..reId, -1)
 									if not listReport[1].recon then
@@ -521,7 +511,7 @@ local mainFrame = imgui.OnFrame(
 					end
 					imgui.SameLine()
 					if imgui.Button(u8'Ответы', imgui.ImVec2(120, 0)) then
-						if not settingsList.settings2 then imgui.OpenPopup('##AnswersAuthor')
+						if not settingsList.settings2.boolFullScreenAnswers then imgui.OpenPopup('##AnswersAuthor')
 						else imgui.OpenPopup(u8'Ответы') end
 					end
 					imgui.SameLine()
@@ -568,7 +558,8 @@ local mainFrame = imgui.OnFrame(
 					end
 
 					----! POPUP
-					if not settingsList.settings2.boolFullScreenAnswers and imgui.BeginPopup('##AnswersAuthor') then
+						
+					if imgui.BeginPopup('##AnswersAuthor') then
 						imgui.Text(u8('Удержите "левый Ctrl" и нажмите серые кнопки, если\nсделал то после ответа сразу скипает репорт'))
 						for i=1, #settingsList.buttons do
 							local statusS = false
@@ -624,7 +615,8 @@ local mainFrame = imgui.OnFrame(
 							if i % 3 ~= 0 then imgui.SameLine() end
 							findPm = false
 						end
-					elseif settingsList.settings2.boolFullScreenAnswers and imgui.BeginPopupModal(u8'Ответы', false, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoMove + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.AlwaysAutoResize) then
+					end
+					if imgui.BeginPopupModal(u8'Ответы', false, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoMove + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.AlwaysAutoResize) then
 						imgui.Text(u8('Удержите "левый Ctrl" и нажмите серые кнопки, если сделал то после ответа сразу скипает репорт'))
 						
 						for i=1, #settingsList.buttons do
@@ -642,7 +634,7 @@ local mainFrame = imgui.OnFrame(
 								imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.34, 0.42, 0.51, 0.7))
 								imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.34, 0.42, 0.51, 0.6))
 							end
-							
+
 							if imgui.Button(u8(settingsList.buttons[i].title..(findPm and ' [PM]' or '')), sizeButtonPopup) then
 								if not listReport[1].recon then listReport[1].recon = true end
 								lua_thread.create(function()
@@ -696,6 +688,9 @@ local mainFrame = imgui.OnFrame(
 							imgui.CloseCurrentPopup()
 						end
 					end
+					
+					
+					-- end
 					if imgui.BeginPopup('##MenuAuthor', imgui.WindowFlags.NoMove) then
 						local oneSize = imgui.ImVec2(160,0)
 						local twoSize = imgui.ImVec2(77.6,0)
@@ -1065,8 +1060,14 @@ local mainFrame = imgui.OnFrame(
 )
 
 local menuFrame = imgui.OnFrame(
-    function() return menuWindow[0] end,
+    function() return menuWindow[0] and not isGamePaused() end,
 	function(self)
+
+		if not menuCursor then
+			menuCursor = true
+			self.HideCursor = false
+		end
+
 		local resX, resY = getScreenResolution()
 		local sizeX, sizeY = 650, 419
 		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
@@ -1086,55 +1087,55 @@ local menuFrame = imgui.OnFrame(
 					imgui.Separator()
 					imgui.PushItemWidth(475)
 					imgui.Text(u8'Ответ через PM при рекон автора:')
-					if imgui.InputText(u8'##answerAuthor', imguiJson.settings2.answerAuthor, sizeof(imguiJson.settings2.answerAuthor)) then
-						settingsList.settings2.answerAuthor = u8:decode(str(imguiJson.settings2.answerAuthor))
+					if imgui.InputText(u8'##answerAuthor', imguiList.settings2.answerAuthor, sizeof(imguiList.settings2.answerAuthor)) then
+						settingsList.settings2.answerAuthor = u8:decode(str(imguiList.settings2.answerAuthor))
 						-- alert(settingsList.settings2.answerAuthor) -- debug
 						save()
 					end
 					imgui.Text(u8'Ответ через PM при рекон пожалованного:')
-					if imgui.InputText(u8'##answerAuthorId', imguiJson.settings2.answerAuthorId, sizeof(imguiJson.settings2.answerAuthorId)) then
-						settingsList.settings2.answerAuthorId = u8:decode(str(imguiJson.settings2.answerAuthorId))
+					if imgui.InputText(u8'##answerAuthorId', imguiList.settings2.answerAuthorId, sizeof(imguiList.settings2.answerAuthorId)) then
+						settingsList.settings2.answerAuthorId = u8:decode(str(imguiList.settings2.answerAuthorId))
 						-- alert(settingsList.settings2.answerAuthorId) -- debug
 						save()
 					end
 					imgui.TextDisabled(u8'Вы можете оставить пустым, если не хотите отправлять PM при рекон')
 					imgui.PopItemWidth()
 					imgui.Separator()
-					if imgui.Checkbox(u8'Полный экран список ответов', imguiJson.settings2.boolFullScreenAnswers) then
-						settingsList.settings2.boolFullScreenAnswers = imguiJson.settings2.boolFullScreenAnswers[0]
+					if imgui.Checkbox(u8'Полный экран список ответов', imguiList.settings2.boolFullScreenAnswers) then
+						settingsList.settings2.boolFullScreenAnswers = imguiList.settings2.boolFullScreenAnswers[0]
 						save()
 					end
-					
-					if imgui.Checkbox(u8'После первого ответа скипать жалобу (жёлтая кнопка)', imguiJson.settings.closeReport) then
-						settingsList.settings.closeReport = imguiJson.settings.closeReport[0]
+
+					if imgui.Checkbox(u8'После первого ответа скипать жалобу (жёлтая кнопка)', imguiList.settings.closeReport) then
+						settingsList.settings.closeReport = imguiList.settings.closeReport[0]
 						save()
 					end
-					if imgui.Checkbox(u8'Переходить на SMS после первого ответа (жёлтая кнопка)', imguiJson.settings.autoSelectSms) then
-						settingsList.settings.autoSelectSms = imguiJson.settings.autoSelectSms[0]
+					if imgui.Checkbox(u8'Переходить на SMS после первого ответа (жёлтая кнопка)', imguiList.settings.autoSelectSms) then
+						settingsList.settings.autoSelectSms = imguiList.settings.autoSelectSms[0]
 						save()
 					end
-					if imgui.Checkbox(u8'Если игрок вышел с игры скипать жалобу (кроме последней)', imguiJson.settings.closeIfLeaved) then
-						settingsList.settings.closeIfLeaved = imguiJson.settings.closeIfLeaved[0]
+					if imgui.Checkbox(u8'Если игрок вышел с игры скипать жалобу (кроме последней)', imguiList.settings.closeIfLeaved) then
+						settingsList.settings.closeIfLeaved = imguiList.settings.closeIfLeaved[0]
 						save()
 					end
-					if imgui.Checkbox(u8'Скрыть рекламы (в том числе /donaterub и /adonate)', imguiJson.settings.hideAd) then
-						settingsList.settings.hideAd = imguiJson.settings.hideAd[0]
+					if imgui.Checkbox(u8'Скрыть рекламы (в том числе /donaterub и /adonate)', imguiList.settings.hideAd) then
+						settingsList.settings.hideAd = imguiList.settings.hideAd[0]
 						save()
 					end
-					if imgui.Checkbox(u8'Скрыть последнее повтроное сообщение в админ-чат (/a)', imguiJson.settings.hideFloodInAdminChat) then
-						settingsList.settings.hideFloodInAdminChat = imguiJson.settings.hideFloodInAdminChat[0]
+					if imgui.Checkbox(u8'Скрыть последнее повтроное сообщение в админ-чат (/a)', imguiList.settings.hideFloodInAdminChat) then
+						settingsList.settings.hideFloodInAdminChat = imguiList.settings.hideFloodInAdminChat[0]
 						save()
 					end
-					if imgui.Checkbox(u8'Скрыть курсор при рекон (/re)', imguiJson.settings.hideCursorIfRecon) then
-						settingsList.settings.hideCursorIfRecon = imguiJson.settings.hideCursorIfRecon[0]
+					if imgui.Checkbox(u8'Скрыть курсор при рекон (/re)', imguiList.settings.hideCursorIfRecon) then
+						settingsList.settings.hideCursorIfRecon = imguiList.settings.hideCursorIfRecon[0]
 						save()
 					end
-					if imgui.Checkbox(u8'Показывать окно если появится новый репорт', imguiJson.settings.showNewReport) then
-						settingsList.settings.showNewReport = imguiJson.settings.showNewReport[0]
+					if imgui.Checkbox(u8'Показывать окно если появится новый репорт', imguiList.settings.showNewReport) then
+						settingsList.settings.showNewReport = imguiList.settings.showNewReport[0]
 						save()
 					end
-					if imgui.Checkbox(u8'Скрыть другие ответы администратора (кроме себя)', imguiJson.settings.otherPm) then
-						settingsList.settings.otherPm = imguiJson.settings.otherPm[0]
+					if imgui.Checkbox(u8'Скрыть другие ответы администратора (кроме себя)', imguiList.settings.otherPm) then
+						settingsList.settings.otherPm = imguiList.settings.otherPm[0]
 						save()
 					end
 				elseif tab[0] == 2 then
@@ -1142,61 +1143,61 @@ local menuFrame = imgui.OnFrame(
 					imgui.CenterText(u8'Чаты')
 					imgui.SetCursorPosY(34)
 					imgui.Separator()
-					imgui.PushItemWidth(475)
-					imgui.Text(u8('Формат админский чат: '..((u8:decode(str(imguiJson.settings2.textFormatAdminChat))):gsub('@prefix', 'Руководитель'):gsub('@nick', sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(PLAYER_PED)))):gsub('@id', select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))):gsub('@msg', 'Hello world!'))))
+					imgui.Text(u8('Формат админский чат: '..((u8:decode(str(imguiList.settings2.textFormatAdminChat))):gsub('@prefix', 'Руководитель'):gsub('@nick', sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(PLAYER_PED)))):gsub('@id', select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))):gsub('@msg', 'Hello world!'))))
 					if imgui.Button('Restore##textFormatAdminChat') then
 						settingsList.settings2.textFormatAdminChat = defaultJson.settings2.textFormatAdminChat
-						imguiJson.settings2.textFormatAdminChat = new.char[255](settingsList.settings2.textFormatAdminChat)
+						imguiList.settings2.textFormatAdminChat = new.char[255](settingsList.settings2.textFormatAdminChat)
 						save()
-					end
-					if imgui.InputText(u8'##textFormatAdminChat', imguiJson.settings2.textFormatAdminChat, sizeof(imguiJson.settings2.textFormatAdminChat)) then
-						settingsList.settings2.textFormatAdminChat = u8:decode(str(imguiJson.settings2.textFormatAdminChat))
+					end imgui.SameLine()
+					imgui.PushItemWidth(426)
+					if imgui.InputText(u8'##textFormatAdminChat', imguiList.settings2.textFormatAdminChat, sizeof(imguiList.settings2.textFormatAdminChat)) then
+						settingsList.settings2.textFormatAdminChat = u8:decode(str(imguiList.settings2.textFormatAdminChat))
 						save()
 					end
 					imgui.PopItemWidth()
 					imgui.Separator()
 
 					imgui.PushItemWidth(25)
-					if imgui.Checkbox('##boolReportNick', imguiJson.settings2.boolReportNick) then settingsList.settings2.boolReportNick = imguiJson.settings2.boolReportNick[0] save() end imgui.SameLine()
-					if imgui.Button('Restore##boolReportNick') then settingsList.settings2.colorReportNick = defaultJson.settings2.colorReportNick imguiJson.settings2.colorReportNick = new.float[4](settingsList.settings2.colorReportNick.r/255, settingsList.settings2.colorReportNick.g/255, settingsList.settings2.colorReportNick.b/255, settingsList.settings2.colorReportNick.a/255) save() end imgui.SameLine()
-					if imgui.ColorEdit3(u8'[Репорт] В начале', imguiJson.settings2.colorReportNick, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorReportNick = {r = imguiJson.settings2.colorReportNick[0]*255, g = imguiJson.settings2.colorReportNick[1]*255, b = imguiJson.settings2.colorReportNick[2]*255, a = 255} save() end
+					if imgui.Checkbox('##boolReportNick', imguiList.settings2.boolReportNick) then settingsList.settings2.boolReportNick = imguiList.settings2.boolReportNick[0] save() end imgui.SameLine()
+					if imgui.Button('Restore##boolReportNick') then settingsList.settings2.colorReportNick = defaultJson.settings2.colorReportNick imguiList.settings2.colorReportNick = new.float[4](settingsList.settings2.colorReportNick.r/255, settingsList.settings2.colorReportNick.g/255, settingsList.settings2.colorReportNick.b/255, settingsList.settings2.colorReportNick.a/255) save() end imgui.SameLine()
+					if imgui.ColorEdit3(u8'[Репорт] В начале', imguiList.settings2.colorReportNick, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorReportNick = {r = imguiList.settings2.colorReportNick[0]*255, g = imguiList.settings2.colorReportNick[1]*255, b = imguiList.settings2.colorReportNick[2]*255, a = 255} save() end
 					----
-					if imgui.Checkbox('##boolReportText', imguiJson.settings2.boolReportText) then settingsList.settings2.boolReportText = imguiJson.settings2.boolReportText[0] save() end imgui.SameLine()
-					if imgui.Button('Restore##boolReportText') then settingsList.settings2.colorReportText = defaultJson.settings2.colorReportText imguiJson.settings2.colorReportText = new.float[4](settingsList.settings2.colorReportText.r/255, settingsList.settings2.colorReportText.g/255, settingsList.settings2.colorReportText.b/255, settingsList.settings2.colorReportText.a/255) save() end imgui.SameLine()
-					if imgui.ColorEdit3(u8'[Репорт] После ника', imguiJson.settings2.colorReportText, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorReportText = {r = imguiJson.settings2.colorReportText[0]*255, g = imguiJson.settings2.colorReportText[1]*255, b = imguiJson.settings2.colorReportText[2]*255, a = 255} save() end
+					if imgui.Checkbox('##boolReportText', imguiList.settings2.boolReportText) then settingsList.settings2.boolReportText = imguiList.settings2.boolReportText[0] save() end imgui.SameLine()
+					if imgui.Button('Restore##boolReportText') then settingsList.settings2.colorReportText = defaultJson.settings2.colorReportText imguiList.settings2.colorReportText = new.float[4](settingsList.settings2.colorReportText.r/255, settingsList.settings2.colorReportText.g/255, settingsList.settings2.colorReportText.b/255, settingsList.settings2.colorReportText.a/255) save() end imgui.SameLine()
+					if imgui.ColorEdit3(u8'[Репорт] После ника', imguiList.settings2.colorReportText, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorReportText = {r = imguiList.settings2.colorReportText[0]*255, g = imguiList.settings2.colorReportText[1]*255, b = imguiList.settings2.colorReportText[2]*255, a = 255} save() end
 
 
-					if imgui.Checkbox('##boolPMNick', imguiJson.settings2.boolPMNick) then settingsList.settings2.boolPMNick = imguiJson.settings2.boolPMNick[0] save() end imgui.SameLine()
-					if imgui.Button('Restore##boolPMNick') then settingsList.settings2.colorPMNick = defaultJson.settings2.colorPMNick imguiJson.settings2.colorPMNick = new.float[4](settingsList.settings2.colorPMNick.r/255, settingsList.settings2.colorPMNick.g/255, settingsList.settings2.colorPMNick.b/255, settingsList.settings2.colorPMNick.a/255) save() end imgui.SameLine()
-					if imgui.ColorEdit3(u8'[PM] В начале', imguiJson.settings2.colorPMNick, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorPMNick = {r = imguiJson.settings2.colorPMNick[0]*255, g = imguiJson.settings2.colorPMNick[1]*255, b = imguiJson.settings2.colorPMNick[2]*255, a = 255} save() end
+					if imgui.Checkbox('##boolPMNick', imguiList.settings2.boolPMNick) then settingsList.settings2.boolPMNick = imguiList.settings2.boolPMNick[0] save() end imgui.SameLine()
+					if imgui.Button('Restore##boolPMNick') then settingsList.settings2.colorPMNick = defaultJson.settings2.colorPMNick imguiList.settings2.colorPMNick = new.float[4](settingsList.settings2.colorPMNick.r/255, settingsList.settings2.colorPMNick.g/255, settingsList.settings2.colorPMNick.b/255, settingsList.settings2.colorPMNick.a/255) save() end imgui.SameLine()
+					if imgui.ColorEdit3(u8'[PM] В начале', imguiList.settings2.colorPMNick, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorPMNick = {r = imguiList.settings2.colorPMNick[0]*255, g = imguiList.settings2.colorPMNick[1]*255, b = imguiList.settings2.colorPMNick[2]*255, a = 255} save() end
 					----
-					if imgui.Checkbox('##boolPMText', imguiJson.settings2.boolPMText) then settingsList.settings2.boolPMText = imguiJson.settings2.boolPMText[0] save() end imgui.SameLine()
-					if imgui.Button('Restore##boolPMText') then settingsList.settings2.colorPMText = defaultJson.settings2.colorPMText imguiJson.settings2.colorPMText = new.float[4](settingsList.settings2.colorPMText.r/255, settingsList.settings2.colorPMText.g/255, settingsList.settings2.colorPMText.b/255, settingsList.settings2.colorPMText.a/255) save() end imgui.SameLine()
-					if imgui.ColorEdit3(u8'[PM] После ника', imguiJson.settings2.colorPMText, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorPMText = {r = imguiJson.settings2.colorPMText[0]*255, g = imguiJson.settings2.colorPMText[1]*255, b = imguiJson.settings2.colorPMText[2]*255, a = 255} save() end
+					if imgui.Checkbox('##boolPMText', imguiList.settings2.boolPMText) then settingsList.settings2.boolPMText = imguiList.settings2.boolPMText[0] save() end imgui.SameLine()
+					if imgui.Button('Restore##boolPMText') then settingsList.settings2.colorPMText = defaultJson.settings2.colorPMText imguiList.settings2.colorPMText = new.float[4](settingsList.settings2.colorPMText.r/255, settingsList.settings2.colorPMText.g/255, settingsList.settings2.colorPMText.b/255, settingsList.settings2.colorPMText.a/255) save() end imgui.SameLine()
+					if imgui.ColorEdit3(u8'[PM] После ника', imguiList.settings2.colorPMText, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorPMText = {r = imguiList.settings2.colorPMText[0]*255, g = imguiList.settings2.colorPMText[1]*255, b = imguiList.settings2.colorPMText[2]*255, a = 255} save() end
 
 
-					if imgui.Checkbox('##boolAdminChatNick', imguiJson.settings2.boolAdminChatNick) then settingsList.settings2.boolAdminChatNick = imguiJson.settings2.boolAdminChatNick[0] save() end imgui.SameLine()
-					if imgui.Button('Restore##boolAdminChatNick') then settingsList.settings2.colorAdminChatNick = defaultJson.settings2.colorAdminChatNick imguiJson.settings2.colorAdminChatNick = new.float[4](settingsList.settings2.colorAdminChatNick.r/255, settingsList.settings2.colorAdminChatNick.g/255, settingsList.settings2.colorAdminChatNick.b/255, settingsList.settings2.colorAdminChatNick.a/255) save() end imgui.SameLine()
-					if imgui.ColorEdit3(u8'[Админ-чат] В начале', imguiJson.settings2.colorAdminChatNick, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorAdminChatNick = {r = imguiJson.settings2.colorAdminChatNick[0]*255, g = imguiJson.settings2.colorAdminChatNick[1]*255, b = imguiJson.settings2.colorAdminChatNick[2]*255, a = 255} save() end
+					if imgui.Checkbox('##boolAdminChatNick', imguiList.settings2.boolAdminChatNick) then settingsList.settings2.boolAdminChatNick = imguiList.settings2.boolAdminChatNick[0] save() end imgui.SameLine()
+					if imgui.Button('Restore##boolAdminChatNick') then settingsList.settings2.colorAdminChatNick = defaultJson.settings2.colorAdminChatNick imguiList.settings2.colorAdminChatNick = new.float[4](settingsList.settings2.colorAdminChatNick.r/255, settingsList.settings2.colorAdminChatNick.g/255, settingsList.settings2.colorAdminChatNick.b/255, settingsList.settings2.colorAdminChatNick.a/255) save() end imgui.SameLine()
+					if imgui.ColorEdit3(u8'[Админ-чат] В начале', imguiList.settings2.colorAdminChatNick, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorAdminChatNick = {r = imguiList.settings2.colorAdminChatNick[0]*255, g = imguiList.settings2.colorAdminChatNick[1]*255, b = imguiList.settings2.colorAdminChatNick[2]*255, a = 255} save() end
 					----
-					if imgui.Checkbox('##boolAdminChatText', imguiJson.settings2.boolAdminChatText) then settingsList.settings2.boolAdminChatText = imguiJson.settings2.boolAdminChatText[0] save() end imgui.SameLine()
-					if imgui.Button('Restore##boolAdminChatText') then settingsList.settings2.colorAdminChatText = defaultJson.settings2.colorAdminChatText imguiJson.settings2.colorAdminChatText = new.float[4](settingsList.settings2.colorAdminChatText.r/255, settingsList.settings2.colorAdminChatText.g/255, settingsList.settings2.colorAdminChatText.b/255, settingsList.settings2.colorAdminChatText.a/255) save() end imgui.SameLine()
-					if imgui.ColorEdit3(u8'[Админ-чат] После ника', imguiJson.settings2.colorAdminChatText, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorAdminChatText = {r = imguiJson.settings2.colorAdminChatText[0]*255, g = imguiJson.settings2.colorAdminChatText[1]*255, b = imguiJson.settings2.colorAdminChatText[2]*255, a = 255} save() end
+					if imgui.Checkbox('##boolAdminChatText', imguiList.settings2.boolAdminChatText) then settingsList.settings2.boolAdminChatText = imguiList.settings2.boolAdminChatText[0] save() end imgui.SameLine()
+					if imgui.Button('Restore##boolAdminChatText') then settingsList.settings2.colorAdminChatText = defaultJson.settings2.colorAdminChatText imguiList.settings2.colorAdminChatText = new.float[4](settingsList.settings2.colorAdminChatText.r/255, settingsList.settings2.colorAdminChatText.g/255, settingsList.settings2.colorAdminChatText.b/255, settingsList.settings2.colorAdminChatText.a/255) save() end imgui.SameLine()
+					if imgui.ColorEdit3(u8'[Админ-чат] После ника', imguiList.settings2.colorAdminChatText, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorAdminChatText = {r = imguiList.settings2.colorAdminChatText[0]*255, g = imguiList.settings2.colorAdminChatText[1]*255, b = imguiList.settings2.colorAdminChatText[2]*255, a = 255} save() end
 
 
-					if imgui.Checkbox('##boolAntiCheat', imguiJson.settings2.boolAntiCheat) then settingsList.settings2.boolAntiCheat = imguiJson.settings2.boolAntiCheat[0] save() end imgui.SameLine()
-					if imgui.Button('Restore##boolAntiCheat') then settingsList.settings2.colorAntiCheat = defaultJson.settings2.colorAntiCheat imguiJson.settings2.colorAntiCheat = new.float[4](settingsList.settings2.colorAntiCheat.r/255, settingsList.settings2.colorAntiCheat.g/255, settingsList.settings2.colorAntiCheat.b/255, settingsList.settings2.colorAntiCheat.a/255) save() end imgui.SameLine()
-					if imgui.ColorEdit3(u8'Античит', imguiJson.settings2.colorAntiCheat, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorAntiCheat = {r = imguiJson.settings2.colorAntiCheat[0]*255, g = imguiJson.settings2.colorAntiCheat[1]*255, b = imguiJson.settings2.colorAntiCheat[2]*255, a = 255} save() end
+					if imgui.Checkbox('##boolAntiCheat', imguiList.settings2.boolAntiCheat) then settingsList.settings2.boolAntiCheat = imguiList.settings2.boolAntiCheat[0] save() end imgui.SameLine()
+					if imgui.Button('Restore##boolAntiCheat') then settingsList.settings2.colorAntiCheat = defaultJson.settings2.colorAntiCheat imguiList.settings2.colorAntiCheat = new.float[4](settingsList.settings2.colorAntiCheat.r/255, settingsList.settings2.colorAntiCheat.g/255, settingsList.settings2.colorAntiCheat.b/255, settingsList.settings2.colorAntiCheat.a/255) save() end imgui.SameLine()
+					if imgui.ColorEdit3(u8'Античит', imguiList.settings2.colorAntiCheat, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorAntiCheat = {r = imguiList.settings2.colorAntiCheat[0]*255, g = imguiList.settings2.colorAntiCheat[1]*255, b = imguiList.settings2.colorAntiCheat[2]*255, a = 255} save() end
 					----
-					if imgui.Checkbox('##boolPunishment', imguiJson.settings2.boolPunishment) then settingsList.settings2.boolPunishment = imguiJson.settings2.boolPunishment[0] save() end imgui.SameLine()
-					if imgui.Button('Restore##boolPunishment') then settingsList.settings2.colorPunishment = defaultJson.settings2.colorPunishment imguiJson.settings2.colorPunishment = new.float[4](settingsList.settings2.colorPunishment.r/255, settingsList.settings2.colorPunishment.g/255, settingsList.settings2.colorPunishment.b/255, settingsList.settings2.colorPunishment.a/255) save() end imgui.SameLine()
-					if imgui.ColorEdit3(u8'Действие адм', imguiJson.settings2.colorPunishment, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorPunishment = {r = imguiJson.settings2.colorPunishment[0]*255, g = imguiJson.settings2.colorPunishment[1]*255, b = imguiJson.settings2.colorPunishment[2]*255, a = 255} save() end
+					if imgui.Checkbox('##boolPunishment', imguiList.settings2.boolPunishment) then settingsList.settings2.boolPunishment = imguiList.settings2.boolPunishment[0] save() end imgui.SameLine()
+					if imgui.Button('Restore##boolPunishment') then settingsList.settings2.colorPunishment = defaultJson.settings2.colorPunishment imguiList.settings2.colorPunishment = new.float[4](settingsList.settings2.colorPunishment.r/255, settingsList.settings2.colorPunishment.g/255, settingsList.settings2.colorPunishment.b/255, settingsList.settings2.colorPunishment.a/255) save() end imgui.SameLine()
+					if imgui.ColorEdit3(u8'Действие адм', imguiList.settings2.colorPunishment, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorPunishment = {r = imguiList.settings2.colorPunishment[0]*255, g = imguiList.settings2.colorPunishment[1]*255, b = imguiList.settings2.colorPunishment[2]*255, a = 255} save() end
 					----
-					if imgui.Checkbox('##boolOtherPrefixA', imguiJson.settings2.boolOtherPrefixA) then settingsList.settings2.boolOtherPrefixA = imguiJson.settings2.boolOtherPrefixA[0] save() end imgui.SameLine()
-					if imgui.Button('Restore##boolOtherPrefixA') then settingsList.settings2.colorOtherPrefixA = defaultJson.settings2.colorOtherPrefixA imguiJson.settings2.colorOtherPrefixA = new.float[4](settingsList.settings2.colorOtherPrefixA.r/255, settingsList.settings2.colorOtherPrefixA.g/255, settingsList.settings2.colorOtherPrefixA.b/255, settingsList.settings2.colorOtherPrefixA.a/255) save() end imgui.SameLine()
-					if imgui.ColorEdit3(u8'Прочее действие адм с префиксом [A]', imguiJson.settings2.colorOtherPrefixA, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorOtherPrefixA = {r = imguiJson.settings2.colorOtherPrefixA[0]*255, g = imguiJson.settings2.colorOtherPrefixA[1]*255, b = imguiJson.settings2.colorOtherPrefixA[2]*255, a = 255} save() end
+					if imgui.Checkbox('##boolOtherPrefixA', imguiList.settings2.boolOtherPrefixA) then settingsList.settings2.boolOtherPrefixA = imguiList.settings2.boolOtherPrefixA[0] save() end imgui.SameLine()
+					if imgui.Button('Restore##boolOtherPrefixA') then settingsList.settings2.colorOtherPrefixA = defaultJson.settings2.colorOtherPrefixA imguiList.settings2.colorOtherPrefixA = new.float[4](settingsList.settings2.colorOtherPrefixA.r/255, settingsList.settings2.colorOtherPrefixA.g/255, settingsList.settings2.colorOtherPrefixA.b/255, settingsList.settings2.colorOtherPrefixA.a/255) save() end imgui.SameLine()
+					if imgui.ColorEdit3(u8'Прочее действие адм с префиксом [A]', imguiList.settings2.colorOtherPrefixA, imgui.ColorEditFlags.NoAlpha + imgui.ColorEditFlags.NoInputs) then settingsList.settings2.colorOtherPrefixA = {r = imguiList.settings2.colorOtherPrefixA[0]*255, g = imguiList.settings2.colorOtherPrefixA[1]*255, b = imguiList.settings2.colorOtherPrefixA[2]*255, a = 255} save() end
 					imgui.PopItemWidth()
-					
+
 				elseif tab[0] == 3 then
 					imgui.SetCursorPosY(10)
 					imgui.CenterText(u8'Ответы')
@@ -1438,10 +1439,266 @@ local menuFrame = imgui.OnFrame(
 	end
 )
 
+local reconFrame = imgui.OnFrame(
+	function() return reconWindow[0] and not isGamePaused() end,
+	function(self)
+
+		if not reconCursor then
+			reconCursor = true
+			self.HideCursor = true
+		end
+
+		local resX, resY = getScreenResolution()
+		local sizeX, sizeY = 500, 69
+		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY-40), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+		imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.FirstUseEver)
+		if imgui.Begin('##reconWindow', reconWindow, imgui.WindowFlags.NoMove + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoBackground) then
+			local sizBut = imgui.ImVec2(77.5,0)
+			local id = blockId
+			imgui.Separator()
+			if imgui.Button('GETSTATS', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						sampSendChat('/getstats '..blockId)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end sl()
+
+			if imgui.Button('OFFSTATS', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						sampSendChat('/getoffstats '..sampGetPlayerNickname(tonumber(blockId)))
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end sl()
+
+			if imgui.Button('SLAP', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						sampSendChat('/slap '..blockId)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end sl()
+
+			if imgui.Button('SPAWN', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						sampSendChat('/sp '..blockId)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end sl()
+
+			if imgui.Button('FREEZE', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						sampSendChat('/freeze '..id)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..id..' не в сети!')
+				end
+			end sl()
+
+			if imgui.Button('UNFREEZE', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						sampSendChat('/unfreeze '..id)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end
+
+			if imgui.Button('AZ', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						lua_thread.create(function()
+							statusReconButton = true
+							selectedAZ = id
+							sampSendChat('/re off')
+							wait(1000)
+							sampSendChat('/tp')
+							wait(3000)
+							statusReconButton = false
+						end)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end sl()
+
+			if imgui.Button('GETHERE', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						lua_thread.create(function()
+							statusReconButton = true
+							sampSendChat('/re off')
+							wait(1050)
+							sampSendChat('/gethere '..id)
+							statusReconButton = false
+						end)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end sl()
+
+			if imgui.Button('GOTO', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						lua_thread.create(function()
+							statusReconButton = true
+							sampSendChat('/re off')
+							wait(1050)
+							sampSendChat('/goto '..id)
+							statusReconButton = false
+						end)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end sl()
+
+			if imgui.Button('GM', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						lua_thread.create(function()
+							sampSendChat('/gm '..id)
+						end)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end sl()
+
+			if imgui.Button('IWEP', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						lua_thread.create(function()
+							sampSendChat('/iwep '..id)
+						end)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end sl()
+
+			if imgui.Button('VEH 462 6 6', sizBut) then
+				if sampIsPlayerConnected(id) then
+					if not statusReconButton then
+						lua_thread.create(function()
+							sampSendChat('/veh 462 6 6')
+						end)
+					else
+						alert('Подождите ещё несколько секунды!')
+					end
+				else
+					alert('Игрок с ID '..blockId..' не в сети!')
+				end
+			end
+		imgui.End()
+		end
+	end
+)
+
+local keycapFrame = imgui.OnFrame(
+    function() return target ~= -1 and not isGamePaused() end,
+    function(self)
+
+		if not keycapCursor and target ~= -1 then
+			keycapCursor = true
+			self.HideCursor = true
+		else
+			keycapCursor = false
+		end
+
+		imgui.SetNextWindowPos(imgui.ImVec2(sW / 2, sH - 116), imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+		imgui.Begin("##KEYS", nil, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.AlwaysAutoResize + imgui.WindowFlags.NoBackground)
+			if doesCharExist(target) then
+				imgui.CenterText(reconPlayerTip..'  >>  '..reconPlayerNick..'  >>  '..reconId)
+				local plState = (isCharOnFoot(target) and "onfoot" or "vehicle")
+
+				imgui.BeginGroup()
+					imgui.SetCursorPosX(10 + 25 + 5)
+					KeyCap("W", (keys[plState]["W"] ~= nil), imgui.ImVec2(30, 30))
+					KeyCap("A", (keys[plState]["A"] ~= nil), imgui.ImVec2(30, 30)); imgui.SameLine()
+					KeyCap("S", (keys[plState]["S"] ~= nil), imgui.ImVec2(30, 30)); imgui.SameLine()
+					KeyCap("D", (keys[plState]["D"] ~= nil), imgui.ImVec2(30, 30))
+				imgui.EndGroup()
+				imgui.SameLine(nil, 20)
+
+				if plState == "onfoot" then
+					imgui.BeginGroup()
+						KeyCap("Shift", (keys[plState]["Shift"] ~= nil), imgui.ImVec2(75, 30)); imgui.SameLine()
+						KeyCap("Alt", (keys[plState]["Alt"] ~= nil), imgui.ImVec2(55, 30))
+						KeyCap("Space", (keys[plState]["Space"] ~= nil), imgui.ImVec2(135, 30))
+					imgui.EndGroup()
+					imgui.SameLine()
+					imgui.BeginGroup()
+						KeyCap("C", (keys[plState]["C"] ~= nil), imgui.ImVec2(30, 30)); imgui.SameLine()
+						KeyCap("F", (keys[plState]["F"] ~= nil), imgui.ImVec2(30, 30))
+						KeyCap("RM", (keys[plState]["RKM"] ~= nil), imgui.ImVec2(30, 30)); imgui.SameLine()
+						KeyCap("LM", (keys[plState]["LKM"] ~= nil), imgui.ImVec2(30, 30))		
+					imgui.EndGroup()
+				else
+					imgui.BeginGroup()
+						KeyCap("Ctrl", (keys[plState]["Ctrl"] ~= nil), imgui.ImVec2(65, 30)); imgui.SameLine()
+						KeyCap("Alt", (keys[plState]["Alt"] ~= nil), imgui.ImVec2(65, 30))
+						KeyCap("Space", (keys[plState]["Space"] ~= nil), imgui.ImVec2(135, 30))
+					imgui.EndGroup()
+					imgui.SameLine()
+					imgui.BeginGroup()
+						KeyCap("Up", (keys[plState]["Up"] ~= nil), imgui.ImVec2(40, 30))
+						KeyCap("Down", (keys[plState]["Down"] ~= nil), imgui.ImVec2(40, 30))	
+					imgui.EndGroup()
+					imgui.SameLine()
+					imgui.BeginGroup()
+						KeyCap("H", (keys[plState]["H"] ~= nil), imgui.ImVec2(30, 30)); imgui.SameLine()
+						KeyCap("F", (keys[plState]["F"] ~= nil), imgui.ImVec2(30, 30))
+						KeyCap("Q", (keys[plState]["Q"] ~= nil), imgui.ImVec2(30, 30)); imgui.SameLine()
+						KeyCap("E", (keys[plState]["E"] ~= nil), imgui.ImVec2(30, 30))
+					imgui.EndGroup()
+				end
+			else
+				target = -1
+			end
+		imgui.End()
+    end
+)
+
 function main()
 	while not isSampAvailable() do wait(0) end
-	alert('Script loaded | GitHub: github.com/kyrtion/helper-report | Menu: /shr | Version: '..thisScript().version)
-	alert('Для появления курсора нажмите "левый Alt", открыть окно "P"')
+	alert('Скрипт загружен | GitHub: kyrtion.me/herep | Menu: /shr | Version: '..thisScript().version)
+	alert('Для появления курсора нажмите "левый Alt", открыть окно репорта "P"')
 	memory.copy(0x4EB9A0, memory.strptr('\xC2\x04\x00'), 3, true)
 	sampRegisterChatCommand('hr', function()
 		mainWindow[0] = not mainWindow[0]
@@ -1455,23 +1712,40 @@ function main()
 			alert('Нажмите "P", чтобы скрыть окно репорта')
 		end
 	end)
+	sampRegisterChatCommand('testhr', function()
+		listReport = {}
+		local list = {
+			nick = 'Vika_Raskalova',
+			id = 0,
+			msg = '2 speedхак',
+			status = false,
+			timer = 0,
+			recon = false,
+			boolCount = false
+		}
+		table.insert(listReport, list)
+	end)
 
 	sampRegisterChatCommand('reportpos', function()
 		if not menuWindow[0] then
 			if not mainWindow[0] then mainWindow[0] = not mainWindow[0] end
 			lua_thread.create(function ()
-				showCursor(true, true)
 				checkCursor = true
-				sampSetCursorMode(4)
+				-- sampSetCursorMode(4)
 				alert('Нажмите "SPACE" чтобы сохранить позицию')
+				local lock = false
 				while checkCursor do
+					if not lock then
+						sampSetCursorMode(3)
+						lock = true
+					end
 					local cX, cY = getCursorPos()
 					posX, posY = cX, cY
 					if isKeyDown(32) then -- 32 = Space
 						sampSetCursorMode(0)
 						settingsList.settings2.positionX, settingsList.settings2.positionY = posX, posY
 						checkCursor = false
-						showCursor(false, false)
+						showCursor(false)
 						save()
 						alert('Сохранено')
 					end
@@ -1498,30 +1772,71 @@ function main()
 	-- Таймер, это мой альтернативный вариант
 	lua_thread.create(function() while true do; wait(1000); if #listReport ~= 0 then; for i=1, #listReport do; listReport[i].timer = listReport[i].timer + 1; end; end; end; end)
 
-	downloadUrlToFile(update_url, update_path, function(id, status)
-		if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-			updateIni = inicfg.load(nil, update_path)
-			if tostring(updateIni.info.version) or tostring(updateIni.info) or tostring(updateIni) ~= (nil or '') then
-				newVersion = tostring(updateIni.info.version):gsub('"', '')
-				oldVersion = tostring(thisScript().version)
-				-- alert('newVersion: '..newVersion..', oldVersion: '..oldVersion)
-				if newVersion ~= oldVersion then
-					alert('Есть обновление! Новая версия: '..newVersion..'. Для обновление введите /hr_verify')
-					update_state = true
-					lockVerify = true
+	if boolEnableAutoUpdate then
+		downloadUrlToFile(update_url, update_path, function(id, status)
+			if status == dlstatus.STATUS_ENDDOWNLOADDATA then
+				updateIni = inicfg.load(nil, update_path)
+				if tostring(updateIni.info.version) or tostring(updateIni.info) or tostring(updateIni) ~= (nil or '') then
+					newVersion = tostring(updateIni.info.version):gsub('"', '')
+					oldVersion = tostring(thisScript().version)
+					-- alert('newVersion: '..newVersion..', oldVersion: '..oldVersion)
+					if newVersion ~= oldVersion then
+						alert('Есть обновление! Новая версия: '..newVersion..'. Для обновление введите /hr_verify')
+						update_state = true
+						lockVerify = true
+					else
+						alert('Проверил на обновление, всё в порядке. Вверсия актуальная')
+					end
+					os.remove(update_path)
 				else
-					alert('Всё в порядке, ваш скрипт версия актуальная')
+					alert('Невозможно проверить наличие обновление. Нажмите CTRL + R чтобы перезагрузить')
 				end
-				os.remove(update_path)
-			else
-				alert('Невозможно проверить наличие обновление. Нажмите CTRL + R чтобы перезагрузить')
 			end
-		end
-	end)
+		end)
+	end
 
 	while true do
 		wait(0)
-		if update_state and checkVerify then
+
+		if isKeyJustPressed(0xA4) and (mainWindow[0] or reconWindow[0]) then
+			if not cursorLock and sampGetCursorMode() ~= 2 then
+    			sampSetCursorMode(3)
+				cursorLock = true
+			else
+				sampSetCursorMode(0)
+    			-- sampToggleCursor(false)
+				cursorLock = false
+			end
+		end
+
+		if blockId ~= -1 and sampIsPlayerConnected(blockId) and not reconWindow[0] then
+			reconWindow[0] = true
+		elseif reconWindow[0] and blockId == -1 then
+			reconWindow[0] = false
+		end
+
+		if blockId ~= -1 then
+			lua_thread.create(function()
+				wait(100)
+				targ(blockId)
+			end)
+		end
+
+		if sampTextdrawIsExists(2143) then
+			local textdraw_string = sampTextdrawGetString(2143)
+			-- print(textdraw_string)
+			-- helper-report-auto.lua: PC_PLAYER:~N~~Y~Maksim_Grimy (249)
+			-- helper-report-auto.lua: ANDROID_PLAYER:~N~~Y~Nikita_Blond (35)
+			if textdraw_string:find('^(.+)%_PLAYER%:%~N%~%~Y%~(.+) %((.+)%)$') then
+				reconPlayerTip, reconPlayerNick, reconId = textdraw_string:match('^(.+)%_PLAYER%:%~N%~%~Y%~(.+) %((.+)%)$')
+				if blockId ~= reconId then
+					reconWindow[0] = true
+					blockId = tonumber(reconId)
+				end
+			end
+		end
+
+		if boolEnableAutoUpdate and update_state and checkVerify then
 			downloadUrlToFile(script_url, script_path, function(id, status)
 				if status == dlstatus.STATUS_ENDDOWNLOADDATA then
 					alert('Скрипт успешно обновлен! Сейчас будет перезагружен')
@@ -1699,11 +2014,81 @@ function sampev.onShowDialog(dialogId, style, title, button1, button2, text)
 		end
 		intCountReport = #listReport
 		return false
+	elseif selectedAZ ~= -1 and dialogId == 9000 and style == 2 and title == '{179cf0}Куда Вы хотите телепортироваться?' then
+		-- sampAddChatMessage('+', -1)
+		lua_thread.create(function()
+			sampSendDialogResponse(dialogId, 1, 0, '')
+			wait(1000)
+			sampSendChat('/gethere '..selectedAZ)
+			selectedAZ = -1
+		end)
+		return false
 	end
 end
 
 function sampev.onTogglePlayerSpectating(bool)
 	statusRecon = bool
+	-- reconWindow[0] = bool
+	if not bool then
+		target = -1
+		blockId = -1
+	end
+end
+
+function targ(arg)
+	arg = tonumber(arg)
+	if arg ~= nil and sampIsPlayerConnected(tonumber(arg)) then
+		local pedExist, ped = sampGetCharHandleBySampPlayerId(arg)
+		if pedExist then
+			target = ped
+			return true
+		end
+		return
+	end
+end
+
+function sampev.onPlayerSync(playerId, data)
+	local result, id = sampGetPlayerIdByCharHandle(target)
+	if result and id == playerId then
+		keys["onfoot"] = {}
+
+		keys["onfoot"]["W"] = (data.upDownKeys == 65408) or nil
+		keys["onfoot"]["A"] = (data.leftRightKeys == 65408) or nil
+		keys["onfoot"]["S"] = (data.upDownKeys == 00128) or nil
+		keys["onfoot"]["D"] = (data.leftRightKeys == 00128) or nil
+
+		keys["onfoot"]["Alt"] = (bit.band(data.keysData, 1024) == 1024) or nil
+		keys["onfoot"]["Shift"] = (bit.band(data.keysData, 32) == 32) or nil
+		keys["onfoot"]["Space"] = (bit.band(data.keysData, 8) == 8) or nil
+		keys["onfoot"]["F"] = (bit.band(data.keysData, 16) == 16) or nil
+		keys["onfoot"]["C"] = (bit.band(data.keysData, 2) == 2) or nil
+
+		keys["onfoot"]["RKM"] = (bit.band(data.keysData, 4) == 4) or nil
+		keys["onfoot"]["LKM"] = (bit.band(data.keysData, 128) == 128) or nil
+	end
+end
+
+function sampev.onVehicleSync(playerId, vehicleId, data)
+	local result, id = sampGetPlayerIdByCharHandle(target)
+	if result and id == playerId then
+		keys["vehicle"] = {}
+
+		keys["vehicle"]["W"] = (bit.band(data.keysData, 8) == 8) or nil
+		keys["vehicle"]["A"] = (data.leftRightKeys == 65408) or nil
+		keys["vehicle"]["S"] = (bit.band(data.keysData, 32) == 32) or nil
+		keys["vehicle"]["D"] = (data.leftRightKeys == 00128) or nil
+
+		keys["vehicle"]["H"] = (bit.band(data.keysData, 2) == 2) or nil
+		keys["vehicle"]["Space"] = (bit.band(data.keysData, 128) == 128) or nil
+		keys["vehicle"]["Ctrl"] = (bit.band(data.keysData, 1) == 1) or nil
+		keys["vehicle"]["Alt"] = (bit.band(data.keysData, 4) == 4) or nil
+		keys["vehicle"]["Q"] = (bit.band(data.keysData, 256) == 256) or nil
+		keys["vehicle"]["E"] = (bit.band(data.keysData, 64) == 64) or nil
+		keys["vehicle"]["F"] = (bit.band(data.keysData, 16) == 16) or nil
+
+		keys["vehicle"]["Up"] = (data.upDownKeys == 65408) or nil
+		keys["vehicle"]["Down"] = (data.upDownKeys == 00128) or nil
+	end
 end
 
 function sampev.onServerMessage(color, text)
@@ -1782,8 +2167,9 @@ function sampev.onServerMessage(color, text)
 	end
 
 	-- (-270686209) || [A] Snegovik_Ya[1] ответил игроку Vadim_Rampage[7]: {FFFFFF}test
-	if settingsList.settings2.boolPMNick and color == -270686209 and text:find('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%: %{FFFFFF%}(.+)$') then
-		local admin, aid, nick, nid, msg = text:match('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%: (.+)$')
+	if settingsList.settings2.boolPMNick and color == -270686209 and text:find('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%:(.+)$') then
+		local admin, aid, nick, nid, msg = text:match('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%:(.+)$')
+		local msg = msg:gsub('^ %{FFFFFF%}', ''):gsub('^%{FFFFFF%}', '')
 		local msg = (settingsList.settings2.boolPMText and intToHex(join_argb(settingsList.settings2.colorPMText.a, settingsList.settings2.colorPMText.r, settingsList.settings2.colorPMText.g, settingsList.settings2.colorPMText.b)) or '')..msg:gsub('%{FFFFFF%}', '')
 		local ftext = '[PM] '..admin..'['..aid..'] > '..nick..'['..nid..']: '..msg
 		sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPMNick.a, settingsList.settings2.colorPMNick.r, settingsList.settings2.colorPMNick.g, settingsList.settings2.colorPMNick.b))
@@ -1802,14 +2188,13 @@ function sampev.onServerMessage(color, text)
 
 	if settingsList.settings2.boolPunishment then
 		if color == -10270806 then -- red 
-			-- local jdb = 
 			-- (-10270806) || Администратор Snegovik_Ya заблокировал чат игроку Father_Rimskiy на 10 минут. Причина: /vad
 			if text:find('^Администратор (.+) заблокировал чат игроку (.+) на (.+) минут%. Причина%:(.+)$') then
 				local admin, nick, min, reason = text:match('^Администратор (.+) заблокировал чат игроку (.+) на (.+) минут%. Причина%:(.+)$')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-				local ftext = 'Администратор '..admin..' заблокировал чат игроку '..nick..' на '..min..' минут. Причина: '..reason
+				local ftext = 'Администратор '..admin..' заблокировал чат игроку '..nick..' на '..min..' минут. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
 			elseif text:find('^Администратор (.+) заблокировал чат игроку (.+)%. Причина%:(.+)$') then
@@ -1817,7 +2202,7 @@ function sampev.onServerMessage(color, text)
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-				local ftext = 'Администратор '..admin..' заблокировал чат игроку '..nick..'. Причина: '..reason
+				local ftext = 'Администратор '..admin..' заблокировал чат игроку '..nick..'. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
 			elseif text:find('^Администратор (.+) заблокировал доступ к репорту игроку (.+) на (.+) минут%. Причина%:(.+)$') then
@@ -1825,7 +2210,7 @@ function sampev.onServerMessage(color, text)
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-				local ftext = 'Администратор '..admin..' заблокировал репорт игроку '..nick..' на '..min..' минут. Причина: '..reason
+				local ftext = 'Администратор '..admin..' заблокировал репорт игроку '..nick..' на '..min..' минут. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
 			elseif text:find('^Администратор (.+) снял блокировку репорта у (.+)$') then
@@ -1850,50 +2235,30 @@ function sampev.onServerMessage(color, text)
 				local ftext = 'Администратор '..admin..' кикнул с пейнтбола игрока '..nick..'. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) заблокировал (.+) на (.+) дней%. Причина%: (.+)$') then
-				local admin, nick, days, reason = text:match('^Администратор (.+) заблокировал (.+) на (.+) дней%. Причина%:(.+)$')
-				local reason = reason or '*не указана*'
-				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
-				if sampIsPlayerConnected(sampGetPlayerIdByNickname(nick)) then
-					nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-					local ftext = 'Администратор '..admin..' заблокировал '..nick..' на '..days..' дней. Причина: '..reason
-					sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
-					return false
-				else
-					local ftext = 'Администратор '..admin..' заблокировал '..nick..' на '..days..' дней. Причина: '..reason
-					sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
-					return false
-				end
 			-- elseif text:find('^Администратор (.+) заблокировал IP адрес%: (.+) на (.+) дней%. Причина%:(.+)$') then
-			elseif text:find('^Администратор (.+) заблокировал IP адрес%: (%d+%.%d+%.%d+%.%d+) на (%d+) дней%. Причина%:(.+)$') then
+			elseif text:find('^Администратор (.+) заблокировал IP адрес%: (.*) на (%d+) дней%. Причина%:(.+)$') then
 				-- (-10270806) || Администратор Jim_Reed заблокировал IP адрес: 4.3.2.1 на 7 дней. Причина: IZP
 				local admin, ip, days, reason = text:match('^Администратор (.+) заблокировал IP адрес%: (.*) на (%d+) дней%. Причина%:(.+)$')
 				print('>'..admin..'<|>'..ip..'<|>'..days..'<|>'..reason..'<')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
-				local ftext = 'Администратор '..admin..' заблокировал IP-адрес '..ip..' на '..days..' дней. Причина: '..reason
+				local ftext = 'Администратор '..admin..' заблокировал IP-адрес '..ip..' на '..days..' дней. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) заблокировал игрока: (.+) на (.+) дней%. Причина%:(.+)$') then
-				local admin, nick, days, reason = text:match('^Администратор (.+) заблокировал игрока: (.+) на (.+) дней%. Причина%:(.+)$')
+			elseif text:find('^Администратор (.+) заблокировал игрока%: (.+) на (%d+) дней%. Причина%:(.*)$') then
+				local admin, nick, days, reason = text:match('^Администратор (.+) заблокировал игрока%: (.+) на (%d+) дней%. Причина%:(.*)$')
+				print(admin, nick, days, reason)
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
-				if sampIsPlayerConnected(sampGetPlayerIdByNickname(nick)) then
-					nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-					local ftext = 'Администратор '..admin..' в оффлайне заблокировал '..nick..' на '..days..' дней. Причина: '..reason
-					sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
-					return false
-				else
-					local ftext = 'Администратор '..admin..' в оффлайне заблокировал '..nick..' на '..days..' дней. Причина: '..reason
-					sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
-					return false
-				end
+				local ftext = 'Администратор '..admin..' в оффлайне заблокировал '..nick..' на '..days..' дней. Причина:'..reason
+				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
+				return false
 			elseif text:find('^Администратор (.+) заблокировал бессрочно (.+)%. Причина%:(.+)$') then
 				local admin, nick, reason = text:match('^Администратор (.+) заблокировал бессрочно (.+)%. Причина%:(.+)$')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-				local ftext = 'Администратор '..admin..' заблокировал бессрочно '..nick..'. Причина: '..reason
+				local ftext = 'Администратор '..admin..' заблокировал бессрочно '..nick..'. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
 			elseif text:find('^%[SBAN%] Администратор (.+) забанил (.+) на (.+) дней%. %[Причина%:(.+)%]') then
@@ -1901,31 +2266,25 @@ function sampev.onServerMessage(color, text)
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-				local ftext = 'Администратор '..admin..' тихо заблокировал игрока '..nick..' на '..days..' дней. Причина: '..reason
+				local ftext = 'Администратор '..admin..' тихо заблокировал игрока '..nick..' на '..days..' дней. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) кикнул (.+). Причина%:(.+)$') then
-				local admin, nick, reason = text:find('^Администратор (.+) кикнул (.+). Причина%:(.+)$')
+			elseif text:find('^Администратор (.+) заблокировал (.+) на (.+) дней%. Причина%:(.+)$') then
+				local admin, nick, days, reason = text:match('^Администратор (.+) заблокировал (.+) на (.+) дней%. Причина%:(.+)$')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
-				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-				local ftext = 'Администратор '..admin..' кикнул '..nick..'. Причина: '..reason
+				local ftext = 'Администратор '..admin..' заблокировал '..nick..' на '..days..' дней. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			-- elseif text:find('^Главный администратор (.+) выдал администратору (.+) выговор (.+)%. Причина%:(.+)$') then
-			-- 	local admin, nick, vigs, reason = text:match('^Главный администратор (.+) выдал администратору (.+) выговор (.+)%. Причина%:(.+)$')
-			-- 	local reason = reason or '*не указана*'
-			-- 	local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
-			-- 	if sampIsPlayerConnected(sampGetPlayerIdByNickname(nick)) then
-			-- 		nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-			-- 		local ftext = 'Главный администратор '..admin..' выдал администратору '..nick..' выговор '..vigs..'. Причина: '..reason
-			-- 		sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
-			-- 		return false
-			-- 	else
-			-- 		local ftext = admin..' выдал администратору '..nick..' выговор '..vigs..'. Причина: '..reason
-			-- 		sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
-			-- 		return false
-			-- 	end
+				-- end
+			elseif text:find('^Администратор (.+) кикнул (.+)%. Причина%:(.+)$') then
+				local admin, nick, reason = text:find('^Администратор (.+) кикнул (.+)%. Причина%:(.+)$')
+				local reason = reason or '*не указана*'
+				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
+				-- local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
+				local ftext = 'Администратор '..admin..' кикнул '..nick..'. Причина:'..reason
+				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
+				return false
 			end
 		elseif color == -1347440726 then -- grey
 			-- (-1347440726) || [A] Snegovik_Ya посадил игрока Snegovik_Ya в деморган на 1 минут. Причина: test
@@ -1934,7 +2293,7 @@ function sampev.onServerMessage(color, text)
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-				local ftext = 'Администратор '..admin..' посадил игрока '..nick..' в деморган на '..min..' минут. Причина: '..reason
+				local ftext = 'Администратор '..admin..' посадил игрока '..nick..' в деморган на '..min..' минут. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
 			elseif text:find('^%[A%] (.+) освободил игрока (.+) из деморгана$')  then
@@ -1944,24 +2303,17 @@ function sampev.onServerMessage(color, text)
 				local ftext = 'Администратор '..admin..' выпустил '..nick..' из деморгана'
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			-- (-1347440726) || [A] Администратор Yamaha_Moon[41] уволил из организации Yamaha_Moon[41]. Причина: 1
-			-- elseif text:find('^%[A%] Администратор (.+)%[(%d+)%] уволил из организации (.+)%[(%d+)%]%. Причина%:(.+)$') then
-			-- 	local admin, aid, nick, nid, reason = text:match('^%[A%] Администратор (.+)%[(%d+)%] уволил из организации (.+)%[(%d+)%]%. Причина%:(.+)$')
-			-- 	local reason = reason or '*не указана*'
-			-- 	local ftext = 'Администратор '..admin..'['..aid..'] уволил из организации '..nick..'['..nid..']. Причина: '..reason
-			-- 	sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
-			-- 	return false
 			elseif text:find('^%[A%] (.+) тихо кикнул (.+)%. Причина%:(.+)$') then
 				local admin, nick, reason = text:match('^%[A%] (.+) тихо кикнул (.+)%. Причина%:(.+)$')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				if sampIsPlayerConnected(sampGetPlayerIdByNickname(nick)) then
 					nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-					local ftext = 'Администратор '..admin..' тихо кикнул '..nick..'. Причина: '..reason
+					local ftext = 'Администратор '..admin..' тихо кикнул '..nick..'. Причина:'..reason
 					sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 					return false
 				else
-					local ftext = 'Администратор '..admin..' тихо кикнул '..nick..'. Причина: '..reason
+					local ftext = 'Администратор '..admin..' тихо кикнул '..nick..'. Причина:'..reason
 					sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 					return false
 				end
@@ -2015,6 +2367,14 @@ function sampev.onServerMessage(color, text)
 			sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorOtherPrefixA.a, settingsList.settings2.colorOtherPrefixA.r, settingsList.settings2.colorOtherPrefixA.g, settingsList.settings2.colorOtherPrefixA.b))
 			return false
 		end
+	end
+end
+
+function showCursor(toggle)
+	if toggle then
+		sampSetCursorMode(CMODE_LOCKCAM)
+	else
+		sampToggleCursor(false)
 	end
 end
 
@@ -2145,11 +2505,65 @@ function imgui.DarkTheme()
 	imgui.GetStyle().Colors[imgui.Col.ModalWindowDimBg]       = imgui.ImVec4(0.00, 0.00, 0.00, 0.70)
 end
 
+function KeyCap(keyName, isPressed, size)
+	local DL = imgui.GetWindowDrawList()
+	local p = imgui.GetCursorScreenPos()
+	local colors = {
+		
+		[false] = imgui.ImVec4(0.12, 0.12, 0.12, 0.8),
+		-- [false] = imgui.ImVec4(0.60, 0.60, 1.00, 0.03),
+		-- [true] = imgui.ImVec4(0.404,0.169,1.0, 1.00) -- blue
+		[true] = imgui.ImVec4(0.60, 0.60, 1.00, 0.90) -- vanilla
+	}
+
+	if KEYCAP == nil then KEYCAP = {} end
+	if KEYCAP[keyName] == nil then
+		KEYCAP[keyName] = {
+			status = isPressed,
+			color = colors[isPressed],
+			timer = nil
+		}
+	end
+
+	local K = KEYCAP[keyName]
+	if isPressed ~= K.status then
+		K.status = isPressed
+		K.timer = os.clock()
+	end
+
+	local rounding = 3.0
+	local A = imgui.ImVec2(p.x, p.y)
+	local B = imgui.ImVec2(p.x + size.x, p.y + size.y)
+	if K.timer ~= nil then
+		K.color = bringVec4To(colors[not isPressed], colors[isPressed], K.timer, 0.001)
+	end
+	local ts = imgui.CalcTextSize(keyName)
+	local text_pos = imgui.ImVec2(p.x + (size.x / 2) - (ts.x / 2), p.y + (size.y / 2) - (ts.y / 2))
+
+	imgui.Dummy(size)
+	DL:AddRectFilled(A, B, u32(K.color), rounding)
+	-- DL:AddRect(A, B, u32(colors[false]), rounding, _, 1)
+	DL:AddText(text_pos, 0xFFFFFFFF, keyName)
+end
+
+function bringVec4To(from, dest, start_time, duration)
+    local timer = os.clock() - start_time
+    if timer >= 0.00 and timer <= duration then
+        local count = timer / (duration / 100)
+        return imgui.ImVec4(
+            from.x + (count * (dest.x - from.x) / 100),
+            from.y + (count * (dest.y - from.y) / 100),
+            from.z + (count * (dest.z - from.z) / 100),
+            from.w + (count * (dest.w - from.w) / 100)
+        ), true
+    end
+    return (timer > duration) and dest or from, false
+end
+
 function onScriptTerminate(s, q)
 	if s == thisScript() then
 		if not lockFailed then
-			alert('Script unloaded | Restart script press "CTRL + R"')
+			alert('Скрипт перестал работать. Нажмите "CTRL + R" чтобы перезагрузить.')
 		end
-		return true
 	end
 end
