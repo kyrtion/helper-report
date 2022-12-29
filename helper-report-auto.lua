@@ -1,5 +1,5 @@
 --- Хейтеры, как вы меня заЫбали, идите нахЫй! ---
-local version_str = '3.0'
+local version_str = '3.1'
 local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
@@ -15,9 +15,9 @@ local inicfg = require 'inicfg'
 
 local imgui = require 'mimgui'
 local encoding = require 'encoding'
-local sampev = require('lib.samp.events')
+local sampev = require 'lib.samp.events'
 local ffi = require 'ffi'
-local memory = require("memory")
+local memory = require 'memory'
 encoding.default = 'CP1251'
 u8 = encoding.UTF8
 local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
@@ -118,6 +118,8 @@ local statusRecon = false
 local selectedAZ = -1
 local lockDefine = false
 local lockWindow = false
+local lockRecon = false
+local playerIdRecon = -1
 local closePop = false
 local selectedIntButton = -1
 local sizeButtonPopup = imgui.ImVec2(170,0)
@@ -400,10 +402,10 @@ local mainFrame = imgui.OnFrame(
 							local cX, cY = getCursorPos()
 							posX, posY = cX, cY
 							if isKeyDown(32) then -- 32 = Space
-								sampSetCursorMode(0)
 								settingsList.settings2.positionX, settingsList.settings2.positionY = posX, posY
 								checkCursor = false
 								-- showCursor(false)
+								sampSetCursorMode(0)
 								save()
 								alert('Сохранено')
 							end
@@ -725,7 +727,7 @@ local mainFrame = imgui.OnFrame(
 							if imgui.Button(u8'GOTO') then
 								lua_thread.create(function()
 									if statusRecon then
-										self.HideCursor = true
+										sampSetCursorMode(0)
 										sampSendChat('/re off')
 										wait(1000)
 									end
@@ -737,7 +739,7 @@ local mainFrame = imgui.OnFrame(
 							if imgui.Button(u8'GETHERE') then
 								lua_thread.create(function()
 									if statusRecon then
-										self.HideCursor = true
+										sampSetCursorMode(0)
 										sampSendChat('/re off')
 										wait(1000)
 									end
@@ -876,7 +878,7 @@ local mainFrame = imgui.OnFrame(
 						if imgui.Button(u8'GOTO') then
 							lua_thread.create(function()
 								if statusRecon then
-									self.HideCursor = true
+									sampSetCursorMode(0)
 									sampSendChat('/re off')
 									wait(1000)
 								end
@@ -888,7 +890,7 @@ local mainFrame = imgui.OnFrame(
 						if imgui.Button(u8'GETHERE') then
 							lua_thread.create(function()
 								if statusRecon then
-									self.HideCursor = true
+									sampSetCursorMode(0)
 									sampSendChat('/re off')
 									wait(1000)
 								end
@@ -1699,7 +1701,8 @@ function main()
 	while not isSampAvailable() do wait(0) end
 	alert('Скрипт загружен | GitHub: kyrtion.me/herep | Menu: /shr | Version: '..thisScript().version)
 	alert('Для появления курсора нажмите "левый Alt", открыть окно репорта "P"')
-	memory.copy(0x4EB9A0, memory.strptr('\xC2\x04\x00'), 3, true)
+	-- memory.copy(0x4EB9A0, memory.strptr('\xC2\x04\x00'), 3, true)
+	memory.write(sampGetBase() + 643864, 37008, 2, true)
 	sampRegisterChatCommand('hr', function()
 		mainWindow[0] = not mainWindow[0]
 	end)
@@ -1735,17 +1738,14 @@ function main()
 				alert('Нажмите "SPACE" чтобы сохранить позицию')
 				local lock = false
 				while checkCursor do
-					if not lock then
-						sampSetCursorMode(3)
-						lock = true
-					end
+					if not lock then sampSetCursorMode(3) lock = true end
 					local cX, cY = getCursorPos()
 					posX, posY = cX, cY
 					if isKeyDown(32) then -- 32 = Space
-						sampSetCursorMode(0)
 						settingsList.settings2.positionX, settingsList.settings2.positionY = posX, posY
 						checkCursor = false
-						showCursor(false)
+						-- showCursor(false)
+						sampSetCursorMode(0)
 						save()
 						alert('Сохранено')
 					end
@@ -1776,7 +1776,7 @@ function main()
 		downloadUrlToFile(update_url, update_path, function(id, status)
 			if status == dlstatus.STATUS_ENDDOWNLOADDATA then
 				updateIni = inicfg.load(nil, update_path)
-				if tostring(updateIni.info.version) or tostring(updateIni.info) or tostring(updateIni) ~= (nil or '') then
+				if updateIni.info.version ~= nil or updateIni.info.version ~= '' then
 					newVersion = tostring(updateIni.info.version):gsub('"', '')
 					oldVersion = tostring(thisScript().version)
 					-- alert('newVersion: '..newVersion..', oldVersion: '..oldVersion)
@@ -1785,7 +1785,7 @@ function main()
 						update_state = true
 						lockVerify = true
 					else
-						alert('Проверил на обновление, всё в порядке. Вверсия актуальная')
+						alert('Проверил на обновление, всё в порядке. Версия актуальная')
 					end
 					os.remove(update_path)
 				else
@@ -1799,7 +1799,7 @@ function main()
 		wait(0)
 
 		if isKeyJustPressed(0xA4) and (mainWindow[0] or reconWindow[0]) then
-			if not cursorLock and sampGetCursorMode() ~= 2 then
+			if not cursorLock and sampGetCursorMode() ~= 3 then
     			sampSetCursorMode(3)
 				cursorLock = true
 			else
@@ -2028,10 +2028,46 @@ end
 
 function sampev.onTogglePlayerSpectating(bool)
 	statusRecon = bool
+	if statusRecon and not lockRecon then
+		lockRecon = true
+	end
 	-- reconWindow[0] = bool
 	if not bool then
 		target = -1
 		blockId = -1
+	end
+end
+
+function sampev.onSpectatePlayer(playerId, camType)
+	playerIdRecon = playerId
+end
+
+function sampev.onShowMenu()
+	if lockRecon and playerIdRecon ~= -1 then
+		return false
+	end
+end
+
+function sampev.onHideMenu()
+	if lockRecon and playerIdRecon ~= -1 then
+		return false
+	end
+end
+
+function sampev.onSendSpawn()
+	if not statusRecon and lockRecon then
+		-- sampAddChatMessage('+', -1)
+		-- nameTag(true)
+		lockRecon = false
+		-- nameTag(true)
+		lua_thread.create(function()
+			wait(200)
+			freezeCharPosition(PLAYER_PED, true)
+			freezeCharPosition(PLAYER_PED, false)
+			setPlayerControl(PLAYER_HANDLE, true)
+			restoreCameraJumpcut()
+			clearCharTasksImmediately(PLAYER_PED)
+		end)
 	end
 end
 
@@ -2565,5 +2601,6 @@ function onScriptTerminate(s, q)
 		if not lockFailed then
 			alert('Скрипт перестал работать. Нажмите "CTRL + R" чтобы перезагрузить.')
 		end
+		sampSetCursorMode(0)
 	end
 end
