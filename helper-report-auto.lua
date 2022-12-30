@@ -1,5 +1,5 @@
 --- Хейтеры, как вы меня заЫбали, идите нахЫй! ---
-local version_str = '3.2'
+local version_str = '3.3'
 local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
@@ -2360,9 +2360,9 @@ function sampev.onServerMessage(color, text)
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
 			end
-		if color == -1347440726 then -- grey
+		elseif color == -1347440726 then -- grey
 			-- (-1347440726) || [A] Snegovik_Ya посадил игрока Snegovik_Ya в деморган на 1 минут. Причина: test
-			elseif text:find('^%[A%] (.+) посадил игрока (.+) в деморган на (.+) минут%. Причина%:(.+)')  then
+			if text:find('^%[A%] (.+) посадил игрока (.+) в деморган на (.+) минут%. Причина%:(.+)')  then
 				local admin, nick, min, reason = text:match('^%[A%] (.+) посадил игрока (.+) в деморган на (.+) минут%. Причина%:(.+)')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
