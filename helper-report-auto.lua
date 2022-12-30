@@ -1,5 +1,5 @@
 --- Хейтеры, как вы меня заЫбали, идите нахЫй! ---
-local version_str = '3.1'
+local version_str = '3.2'
 local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
@@ -120,6 +120,7 @@ local lockDefine = false
 local lockWindow = false
 local lockRecon = false
 local playerIdRecon = -1
+local checkVersion = false
 local closePop = false
 local selectedIntButton = -1
 local sizeButtonPopup = imgui.ImVec2(170,0)
@@ -1769,14 +1770,46 @@ function main()
 		end
 	end)
 
+	sampRegisterChatCommand('hr_check', function()
+		if checkVersion then
+			checkVersion = false
+			alert('Повторно проверяю обновление...')
+			downloadUrlToFile(update_url, update_path, function(id, status)
+				if status == dlstatus.STATUS_ENDDOWNLOADDATA then
+					-- updateIni = {}
+					updateIni = inicfg.load(nil, update_path)
+					if updateIni ~= nil and
+					updateIni.info.version ~= nil then
+						newVersion = tostring(updateIni.info.version):gsub('"', '')
+						oldVersion = tostring(thisScript().version)
+						-- alert('newVersion: '..newVersion..', oldVersion: '..oldVersion)
+						if newVersion ~= oldVersion then
+							alert('Есть обновление! Новая версия: '..newVersion..'. Для обновление введите /hr_verify')
+							update_state = true
+							lockVerify = true
+						else
+							alert('Проверил на обновление, всё в порядке. Версия актуальная')
+						end
+						os.remove(update_path)
+					else
+						alert('Невозможно проверить наличие обновление. Снова проверить на наличие обновление, введите /hr_check')
+						checkVersion = true
+					end
+				end
+			end)
+		end
+	end)
+
 	-- Таймер, это мой альтернативный вариант
 	lua_thread.create(function() while true do; wait(1000); if #listReport ~= 0 then; for i=1, #listReport do; listReport[i].timer = listReport[i].timer + 1; end; end; end; end)
 
 	if boolEnableAutoUpdate then
 		downloadUrlToFile(update_url, update_path, function(id, status)
 			if status == dlstatus.STATUS_ENDDOWNLOADDATA then
+				-- updateIni = {}
 				updateIni = inicfg.load(nil, update_path)
-				if updateIni.info.version ~= nil or updateIni.info.version ~= '' then
+				if updateIni ~= nil and
+				updateIni.info.version ~= nil then
 					newVersion = tostring(updateIni.info.version):gsub('"', '')
 					oldVersion = tostring(thisScript().version)
 					-- alert('newVersion: '..newVersion..', oldVersion: '..oldVersion)
@@ -1789,7 +1822,8 @@ function main()
 					end
 					os.remove(update_path)
 				else
-					alert('Невозможно проверить наличие обновление. Нажмите CTRL + R чтобы перезагрузить')
+					alert('Невозможно проверить наличие обновление. Снова проверить на наличие обновление, введите /hr_check')
+					checkVersion = true
 				end
 			end
 		end)
@@ -1799,7 +1833,7 @@ function main()
 		wait(0)
 
 		if isKeyJustPressed(0xA4) and (mainWindow[0] or reconWindow[0]) then
-			if not cursorLock and sampGetCursorMode() ~= 3 then
+			if not cursorLock and (sampGetCursorMode() ~= 2 or sampGetCursorMode() ~= 3) then
     			sampSetCursorMode(3)
 				cursorLock = true
 			else
@@ -2223,48 +2257,48 @@ function sampev.onServerMessage(color, text)
 	end
 
 	if settingsList.settings2.boolPunishment then
-		if color == -10270806 then -- red 
+		if color == -10270806 then -- red
 			-- (-10270806) || Администратор Snegovik_Ya заблокировал чат игроку Father_Rimskiy на 10 минут. Причина: /vad
-			if text:find('^Администратор (.+) заблокировал чат игроку (.+) на (.+) минут%. Причина%:(.+)$') then
-				local admin, nick, min, reason = text:match('^Администратор (.+) заблокировал чат игроку (.+) на (.+) минут%. Причина%:(.+)$')
+			if text:find('^Администратор (.+) заблокировал чат игроку (.+) на (.+) минут%. Причина%:(.+)') then
+				local admin, nick, min, reason = text:match('^Администратор (.+) заблокировал чат игроку (.+) на (.+) минут%. Причина%:(.+)')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
 				local ftext = 'Администратор '..admin..' заблокировал чат игроку '..nick..' на '..min..' минут. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) заблокировал чат игроку (.+)%. Причина%:(.+)$') then
-				local admin, nick, reason = text:match('^Администратор (.+) заблокировал чат игроку (.+)%. Причина%:(.+)$')
+			elseif text:find('^Администратор (.+) заблокировал чат игроку (.+)%. Причина%:(.+)') then
+				local admin, nick, reason = text:match('^Администратор (.+) заблокировал чат игроку (.+)%. Причина%:(.+)')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
 				local ftext = 'Администратор '..admin..' заблокировал чат игроку '..nick..'. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) заблокировал доступ к репорту игроку (.+) на (.+) минут%. Причина%:(.+)$') then
-				local admin, nick, min, reason = text:match('^Администратор (.+) заблокировал доступ к репорту игроку (.+) на (.+) минут%. Причина:(.+)$')
+			elseif text:find('^Администратор (.+) заблокировал доступ к репорту игроку (.+) на (.+) минут%. Причина%:(.+)') then
+				local admin, nick, min, reason = text:match('^Администратор (.+) заблокировал доступ к репорту игроку (.+) на (.+) минут%. Причина:(.+)')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
 				local ftext = 'Администратор '..admin..' заблокировал репорт игроку '..nick..' на '..min..' минут. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) снял блокировку репорта у (.+)$') then
-				local admin, nick = text:match('^Администратор (.+) снял блокировку репорта у (.+)$')
+			elseif text:find('^Администратор (.+) снял блокировку репорта у (.+)') then
+				local admin, nick = text:match('^Администратор (.+) снял блокировку репорта у (.+)')
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
 				local ftext = 'Администратор '..admin..' снял блокировку репорта у '..nick
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) снял блокировку чата у (.+)$') then
-				local admin, nick = text:match('^Администратор (.+) снял блокировку чата у (.+)$')
+			elseif text:find('^Администратор (.+) снял блокировку чата у (.+)') then
+				local admin, nick = text:match('^Администратор (.+) снял блокировку чата у (.+)')
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
 				local ftext = 'Администратор '..admin..' снял блокировку чата у '..nick
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) кикнул с пейнтбола игрока (.+)%. Причина%:(.+)$') then
-				local admin, nick, reason = text:match('^Администратор (.+) кикнул с пейнтбола игрока (.+)%. Причина%:(.+)$')
+			elseif text:find('^Администратор (.+) кикнул с пейнтбола игрока (.+)%. Причина%:(.+)') then
+				local admin, nick, reason = text:match('^Администратор (.+) кикнул с пейнтбола игрока (.+)%. Причина%:(.+)')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
@@ -2272,25 +2306,25 @@ function sampev.onServerMessage(color, text)
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
 			-- elseif text:find('^Администратор (.+) заблокировал IP адрес%: (.+) на (.+) дней%. Причина%:(.+)$') then
-			elseif text:find('^Администратор (.+) заблокировал IP адрес%: (.*) на (%d+) дней%. Причина%:(.+)$') then
+			elseif text:find('^Администратор (.+) заблокировал IP адрес%: (.*) на (%d+) дней%. Причина%:(.+)') then
 				-- (-10270806) || Администратор Jim_Reed заблокировал IP адрес: 4.3.2.1 на 7 дней. Причина: IZP
-				local admin, ip, days, reason = text:match('^Администратор (.+) заблокировал IP адрес%: (.*) на (%d+) дней%. Причина%:(.+)$')
+				local admin, ip, days, reason = text:match('^Администратор (.+) заблокировал IP адрес%: (.*) на (%d+) дней%. Причина%:(.+)')
 				print('>'..admin..'<|>'..ip..'<|>'..days..'<|>'..reason..'<')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local ftext = 'Администратор '..admin..' заблокировал IP-адрес '..ip..' на '..days..' дней. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) заблокировал игрока%: (.+) на (%d+) дней%. Причина%:(.*)$') then
-				local admin, nick, days, reason = text:match('^Администратор (.+) заблокировал игрока%: (.+) на (%d+) дней%. Причина%:(.*)$')
+			elseif text:find('^Администратор (.+) заблокировал игрока%: (.+) на (%d+) дней%. Причина%:(.*)') then
+				local admin, nick, days, reason = text:match('^Администратор (.+) заблокировал игрока%: (.+) на (%d+) дней%. Причина%:(.*)')
 				print(admin, nick, days, reason)
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local ftext = 'Администратор '..admin..' в оффлайне заблокировал '..nick..' на '..days..' дней. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) заблокировал бессрочно (.+)%. Причина%:(.+)$') then
-				local admin, nick, reason = text:match('^Администратор (.+) заблокировал бессрочно (.+)%. Причина%:(.+)$')
+			elseif text:find('^Администратор (.+) заблокировал бессрочно (.+)%. Причина%:(.+)') then
+				local admin, nick, reason = text:match('^Администратор (.+) заблокировал бессрочно (.+)%. Причина%:(.+)')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
@@ -2305,57 +2339,55 @@ function sampev.onServerMessage(color, text)
 				local ftext = 'Администратор '..admin..' тихо заблокировал игрока '..nick..' на '..days..' дней. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^Администратор (.+) заблокировал (.+) на (.+) дней%. Причина%:(.+)$') then
-				local admin, nick, days, reason = text:match('^Администратор (.+) заблокировал (.+) на (.+) дней%. Причина%:(.+)$')
+			elseif text:find('^Администратор (.+) заблокировал (.+) на (.+) дней%. Причина%:(.+)') then
+				local admin, nick, days, reason = text:match('^Администратор (.+) заблокировал (.+) на (.+) дней%. Причина%:(.+)')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local ftext = 'Администратор '..admin..' заблокировал '..nick..' на '..days..' дней. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
 				-- end
-			elseif text:find('^Администратор (.+) кикнул (.+)%. Причина%:(.+)$') then
-				local admin, nick, reason = text:find('^Администратор (.+) кикнул (.+)%. Причина%:(.+)$')
+			-- (-10270806) || Администратор Jake_Human кикнул Prainik_Medvedeva. Причина: помеха. 
+			-- (-10270806) || Администратор Mikhail_Stewart кикнул Mikhail_Stewart. Причина: тест
+			elseif text:find('^Администратор (.+) кикнул (.+)%. Причина%:(.+)') then
+				local admin, nick, reason = text:match('^Администратор (.+) кикнул (.+)%. Причина%:(.+)')
+				print(admin, nick, reason)
 				local reason = reason or '*не указана*'
-				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
-				-- local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
+				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']' or admin
+				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']' or nick
 				local ftext = 'Администратор '..admin..' кикнул '..nick..'. Причина:'..reason
+				print(admin, nick, reason)
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
 			end
-		elseif color == -1347440726 then -- grey
+		if color == -1347440726 then -- grey
 			-- (-1347440726) || [A] Snegovik_Ya посадил игрока Snegovik_Ya в деморган на 1 минут. Причина: test
-			if text:find('^%[A%] (.+) посадил игрока (.+) в деморган на (.+) минут%. Причина%:(.+)$')  then
-				local admin, nick, min, reason = text:match('^%[A%] (.+) посадил игрока (.+) в деморган на (.+) минут%. Причина%:(.+)$')
+			elseif text:find('^%[A%] (.+) посадил игрока (.+) в деморган на (.+) минут%. Причина%:(.+)')  then
+				local admin, nick, min, reason = text:match('^%[A%] (.+) посадил игрока (.+) в деморган на (.+) минут%. Причина%:(.+)')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
 				local ftext = 'Администратор '..admin..' посадил игрока '..nick..' в деморган на '..min..' минут. Причина:'..reason
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^%[A%] (.+) освободил игрока (.+) из деморгана$')  then
-				local admin, nick = text:match('^%[A%] (.+) освободил игрока (.+) из деморгана$')
+			elseif text:find('^%[A%] (.+) освободил игрока (.+) из деморгана')  then
+				local admin, nick = text:match('^%[A%] (.+) освободил игрока (.+) из деморгана')
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
 				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
 				local ftext = 'Администратор '..admin..' выпустил '..nick..' из деморгана'
 				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
 				return false
-			elseif text:find('^%[A%] (.+) тихо кикнул (.+)%. Причина%:(.+)$') then
-				local admin, nick, reason = text:match('^%[A%] (.+) тихо кикнул (.+)%. Причина%:(.+)$')
+			elseif text:find('^%[A%] (.+) тихо кикнул (.+)%. Причина%:(.+)') then
+				local admin, nick, reason = text:match('^%[A%] (.+) тихо кикнул (.+)%. Причина%:(.+)')
 				local reason = reason or '*не указана*'
 				local admin = admin..'['..sampGetPlayerIdByNickname(admin)..']'
-				if sampIsPlayerConnected(sampGetPlayerIdByNickname(nick)) then
-					nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
-					local ftext = 'Администратор '..admin..' тихо кикнул '..nick..'. Причина:'..reason
-					sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
-					return false
-				else
-					local ftext = 'Администратор '..admin..' тихо кикнул '..nick..'. Причина:'..reason
-					sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
-					return false
-				end
+				local nick = nick..'['..sampGetPlayerIdByNickname(nick)..']'
+				local ftext = 'Администратор '..admin..' тихо кикнул '..nick..'. Причина:'..reason
+				sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
+				return false
 			end
 		end
-		if (color == -10270806 and text:find('Ник%: %[(.+)%]')) or text:find('^%{FFFFFF%}Ник%: %{FF0000%}%[(.+)%]$') then return false end
+		if (color == -10270806 and text:find('Ник%: %[(.+)%]')) or text:find('^%{FFFFFF%}Ник%: %{FF0000%}%[(.+)%]') then return false end
 	end
 
 	if settingsList.settings2.boolAdminChatNick then
@@ -2421,9 +2453,13 @@ function sampGetPlayerIdByNickname(arg1)
 		return myid
 	end
 	-- if not sampIsPlayerConnected(arg1) then return -1 end
-	for i = 0, 1003 do
+	local d = 1003
+	for i = 0, d do
 		if sampIsPlayerConnected(i) and sampGetPlayerNickname(i) == arg1 then
 			return i
+		end
+		if i == d then
+			return '?'
 		end
 	end
 end
