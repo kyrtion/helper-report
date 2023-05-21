@@ -1,5 +1,5 @@
 --- Хейтеры, как вы меня заЫбали, идите нахЫй! ---
-local version_str = '3.3'
+local version_str = '3.4'
 local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
@@ -2027,7 +2027,7 @@ function sampGetListboxItemsCount(text)
 end
 
 function sampev.onShowDialog(dialogId, style, title, button1, button2, text)
-	if lockDefine and dialogId == 228 and style == 4 and title:find('%{FFC800%}Репорт') then
+	if lockDefine and dialogId == 228 and style == 4 and title:gsub('{......}', ''):find('Репорт') then
 		lockDefine = false
 		intCountReport = 0
 		listReport = {}
