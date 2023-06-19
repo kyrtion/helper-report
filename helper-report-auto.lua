@@ -1,5 +1,5 @@
 --- Хейтеры, как вы меня заЫбали, идите нахЫй! ---
-local version_str = '3.4'
+local version_str = '3.5'
 local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
@@ -1856,8 +1856,8 @@ function main()
 			end)
 		end
 
-		if sampTextdrawIsExists(2143) then
-			local textdraw_string = sampTextdrawGetString(2143)
+		if sampTextdrawIsExists(2182) then
+			local textdraw_string = sampTextdrawGetString(2182)
 			-- print(textdraw_string)
 			-- helper-report-auto.lua: PC_PLAYER:~N~~Y~Maksim_Grimy (249)
 			-- helper-report-auto.lua: ANDROID_PLAYER:~N~~Y~Nikita_Blond (35)
