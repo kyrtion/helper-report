@@ -1,5 +1,5 @@
 --- ’ейтеры, как вы мен€ заџбали, идите нахџй! ---
-local version_str = '3.7'
+local version_str = '3.7.1'
 local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
@@ -2124,8 +2124,10 @@ end
 
 -- добавлен новый альтернативный способ на получении ид рекона
 function sampev.onShowTextDraw(textdrawId, data)
-	if data.text and data.text:find('PLAYER:.+%s%(%d+%)$') and data.boxColor == -2139062144 and data.backgroundColor == -16777216 then
-        reconPlayerTip, reconPlayerNick, reconId = data.text:match('^(.+)%_PLAYER%:%~N%~%~Y%~(.+) %((.+)%)$')
+    -- -2139062144   -16777216   PC_PLAYER:~N~~R~klop_(108)   2210
+    print(data.boxColor, data.backgroundColor, data.text, textdrawId)
+	if data.text and data.text:find('PLAYER:.+.%(%d+%)$') and data.boxColor == -2139062144 and data.backgroundColor == -16777216 then
+        reconPlayerTip, reconPlayerNick, reconId = data.text:match('^(.+)%_PLAYER%:.+%~(.+).%((.+)%)$')
         if blockId ~= reconId then
             reconWindow[0] = true
             blockId = tonumber(reconId)
