@@ -80,7 +80,7 @@
 
 
 ## Автор скрипта
-- Jim_Reed aka kyrtion
+- Mikhail_Stewart aka kyrtion
 - Telegram: https://t.me/kyrtion
 - VKontakte: https://vk.com/kyrtion
 - Discord: kyrtion#7310
