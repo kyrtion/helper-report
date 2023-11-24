@@ -1,5 +1,5 @@
 --- Хейтеры, как вы меня заЫбали, идите нахЫй! ---
-local version_str = '3.7.2'
+local version_str = '3.7.3'
 local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
@@ -1043,7 +1043,7 @@ end)
 
 local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseMenuActive() end, function()
     local resX, resY = getScreenResolution()
-    local sizeX, sizeY = 650, 41
+    local sizeX, sizeY = 650, 480
 
     imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
     imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.FirstUseEver)
@@ -1074,8 +1074,8 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
                 imgui.TextDisabled(u8'Вы можете оставить пустым, если не хотите отправлять PM при рекон')
+                imgui.NewLine()
                 imgui.PopItemWidth()
-                imgui.Separator()
                 if imgui.Checkbox(u8'Полный экран список ответов', imguiList.settings2.boolFullScreenAnswers) then
                     settingsList.settings2.boolFullScreenAnswers = imguiList.settings2.boolFullScreenAnswers[0]
                     save()
@@ -1120,7 +1120,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                 imgui.Separator()
                 imgui.Text(u8('Формат админский чат: ' ..
                 ((u8:decode(str(imguiList.settings2.textFormatAdminChat))):gsub('@prefix', 'Руководитель'):gsub('@nick', sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(PLAYER_PED)))):gsub('@id', select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))):gsub('@msg', 'Hello world!'))))
-                if imgui.Button('Restore##textFormatAdminChat') then
+                if imgui.Button(u8'Сброс##textFormatAdminChat') then
                     settingsList.settings2.textFormatAdminChat = defaultJson.settings2.textFormatAdminChat
                     imguiList.settings2.textFormatAdminChat = new.char[255](settingsList.settings2.textFormatAdminChat)
                     save()
@@ -1140,7 +1140,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
                 imgui.SameLine()
-                if imgui.Button('Restore##boolReportNick') then
+                if imgui.Button(u8'Сброс##boolReportNick') then
                     settingsList.settings2.colorReportNick = defaultJson.settings2.colorReportNick
                     imguiList.settings2.colorReportNick = new.float[4](settingsList.settings2.colorReportNick.r / 255,
                         settingsList.settings2.colorReportNick.g / 255, settingsList.settings2.colorReportNick.b / 255,
@@ -1159,7 +1159,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
                 imgui.SameLine()
-                if imgui.Button('Restore##boolReportText') then
+                if imgui.Button(u8'Сброс##boolReportText') then
                     settingsList.settings2.colorReportText = defaultJson.settings2.colorReportText
                     imguiList.settings2.colorReportText = new.float[4](settingsList.settings2.colorReportText.r / 255,
                         settingsList.settings2.colorReportText.g / 255, settingsList.settings2.colorReportText.b / 255,
@@ -1178,7 +1178,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
                 imgui.SameLine()
-                if imgui.Button('Restore##boolPMNick') then
+                if imgui.Button(u8'Сброс##boolPMNick') then
                     settingsList.settings2.colorPMNick = defaultJson.settings2.colorPMNick
                     imguiList.settings2.colorPMNick = new.float[4](settingsList.settings2.colorPMNick.r / 255,
                         settingsList.settings2.colorPMNick.g / 255, settingsList.settings2.colorPMNick.b / 255,
@@ -1197,7 +1197,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
                 imgui.SameLine()
-                if imgui.Button('Restore##boolPMText') then
+                if imgui.Button(u8'Сброс##boolPMText') then
                     settingsList.settings2.colorPMText = defaultJson.settings2.colorPMText
                     imguiList.settings2.colorPMText = new.float[4](settingsList.settings2.colorPMText.r / 255,
                         settingsList.settings2.colorPMText.g / 255, settingsList.settings2.colorPMText.b / 255,
@@ -1217,7 +1217,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
                 imgui.SameLine()
-                if imgui.Button('Restore##boolAdminChatNick') then
+                if imgui.Button(u8'Сброс##boolAdminChatNick') then
                     settingsList.settings2.colorAdminChatNick = defaultJson.settings2.colorAdminChatNick
                     imguiList.settings2.colorAdminChatNick = new.float[4](
                     settingsList.settings2.colorAdminChatNick.r / 255, settingsList.settings2.colorAdminChatNick.g / 255,
@@ -1237,7 +1237,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
                 imgui.SameLine()
-                if imgui.Button('Restore##boolAdminChatText') then
+                if imgui.Button(u8'Сброс##boolAdminChatText') then
                     settingsList.settings2.colorAdminChatText = defaultJson.settings2.colorAdminChatText
                     imguiList.settings2.colorAdminChatText = new.float[4](
                     settingsList.settings2.colorAdminChatText.r / 255, settingsList.settings2.colorAdminChatText.g / 255,
@@ -1258,7 +1258,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
                 imgui.SameLine()
-                if imgui.Button('Restore##boolAntiCheat') then
+                if imgui.Button(u8'Сброс##boolAntiCheat') then
                     settingsList.settings2.colorAntiCheat = defaultJson.settings2.colorAntiCheat
                     imguiList.settings2.colorAntiCheat = new.float[4](settingsList.settings2.colorAntiCheat.r / 255,
                         settingsList.settings2.colorAntiCheat.g / 255, settingsList.settings2.colorAntiCheat.b / 255,
@@ -1277,7 +1277,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
                 imgui.SameLine()
-                if imgui.Button('Restore##boolPunishment') then
+                if imgui.Button(u8'Сброс##boolPunishment') then
                     settingsList.settings2.colorPunishment = defaultJson.settings2.colorPunishment
                     imguiList.settings2.colorPunishment = new.float[4](settingsList.settings2.colorPunishment.r / 255,
                         settingsList.settings2.colorPunishment.g / 255, settingsList.settings2.colorPunishment.b / 255,
@@ -1296,7 +1296,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
                 imgui.SameLine()
-                if imgui.Button('Restore##boolOtherPrefixA') then
+                if imgui.Button(u8'Сброс##boolOtherPrefixA') then
                     settingsList.settings2.colorOtherPrefixA = defaultJson.settings2.colorOtherPrefixA
                     imguiList.settings2.colorOtherPrefixA = new.float[4](settingsList.settings2.colorOtherPrefixA.r / 255,
                         settingsList.settings2.colorOtherPrefixA.g / 255, settingsList.settings2.colorOtherPrefixA.b /
@@ -2123,9 +2123,10 @@ function imgui.TextColoredRGB(text)
     render_text(text)
 end
 
-function get_timer(time)
+function get_timer(seconds) -- time
     -- return os.date('%H:%M:%S', 86400 - get_timezone() + time) -- 1.0
-    return os.date('%H:%M:%S', 86400 - os.difftime(86400, os.time(os.date('!*t', 86400))) + time) -- 2.0
+    -- return os.date('%H:%M:%S', 86400 - os.difftime(86400, os.time(os.date('!*t', 86400))) + time) -- 2.0
+    return string.format('%02d:%02d:%02d', math.floor(seconds / 3600), math.floor((seconds % 3600) / 60), seconds % 60)
 end
 
 function sampGetListboxItemText(str, item)
@@ -2139,9 +2140,7 @@ end
 
 function sampGetListboxItemsCount(text)
     local i = 0
-    for _ in text:gmatch('.-\n') do
-        i = i + 1
-    end
+    for _ in text:gmatch('.-\n') do i = i + 1 end
     return i
 end
 
@@ -2520,14 +2519,17 @@ function sampev.onServerMessage(color, text)
                 return false
             end
         end
-        if (color == -10270806 and text:find('Ник%: %[(.+)%]')) or text:find('^%{FFFFFF%}Ник%: %{FF0000%}%[(.+)%]') then return false end
+
+        if color == -10270806 and text:gsub('{......}', ''):find('^Ник%: %[(.-)%]') then
+            return false
+        end
     end
 
     if settingsList.settings2.boolAdminChatNick then
         -- (-1191240961) || [A-11] Snegovik_Ya[13]: asd
-        if color == -1191240961 and text:find('^%[(.+)%] (.+)%[(%d+)%]%:(.*)') then
+        if color == -1191240961 and text:find('^%[(.*)%] (.+)%[(%d+)%]%:(.*)') then
             if settingsList.settings2.boolFormatAdminChat then
-                local prefix, nick, id, msg = text:match('^%[(.+)%] (.+)%[(%d+)%]%:(.*)')
+                local prefix, nick, id, msg = text:match('^%[(.*)%] (.+)%[(%d+)%]%:(.*)')
                 local msg = msg:gsub('^ ', '') or '*не указана*'
                 local msg = (settingsList.settings2.boolAdminChatText and intToHex(join_argb(settingsList.settings2.colorAdminChatText.a, settingsList.settings2.colorAdminChatText.r, settingsList.settings2.colorAdminChatText.g, settingsList.settings2.colorAdminChatText.b)))..msg
                 -- local prefix = prefix:gsub('A%-', '')
