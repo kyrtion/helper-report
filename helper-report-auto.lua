@@ -1,22 +1,23 @@
 --- Хейтеры, как вы меня заЫбали, идите нахЫй! ---
-local version_str = '3.7.3'
+local version_str = '3.8'
 local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
 script_description('ВКонтакте: @kyrtion | Telegram: @kyrtion | Discord: kyrtion#7310. Специально для проекта Russia RP')
 script_version(version_str)
 
--- История версии: https://github.com/kyrtion/helperreport/version.md
+-- История версии: https://github.com/kyrtion/helper-report/version.md
 
-local dlstatus = require 'moonloader'.download_status
-local inicfg = require 'inicfg'
+local dlstatus = require('moonloader').download_status
+local inicfg = require('inicfg')
+local bit = require('bit')
 
-local imgui = require 'mimgui'
-local encoding = require 'encoding'
-local sampev = require 'lib.samp.events'
-local ffi = require 'ffi'
-local memory = require 'memory'
-local vkeys = require 'vkeys'
+local imgui = require('mimgui')
+local encoding = require('encoding')
+local sampev = require('samp.events')
+local ffi = require('ffi')
+local memory = require('memory')
+local vkeys = require('vkeys')
 
 encoding.default = 'CP1251'
 local u8 = encoding.UTF8
@@ -24,30 +25,30 @@ local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
 local resX, resY = getScreenResolution()
 local font = renderCreateFont('Console', resY >= 1080 and 12 or 10, 13)
 
-function json(filePath)
-    local list = {}
+local function json(filePath)
+    local funcs = {}
 
-    function list:read()
-        local file = io.open(filePath, 'r+')
-        local jsonInString = file:read('*a')
-        file:close()
-        local jsonTable = decodeJson(jsonInString)
-        return jsonTable
+    function funcs:read()
+        local file = io.open(filePath, 'r+') do
+            local jsonInString = file:read('*a')
+            file:close()
+            local jsonTable = decodeJson(jsonInString)
+            return jsonTable
+        end
     end
 
-    function list:write(t)
-        file = io.open(filePath, 'w')
-        file:write(encodeJson(t))
-        file:flush()
-        file:close()
+    function funcs:write(t)
+        local file = io.open(filePath, 'w') do
+            file:write(encodeJson(t))
+            file:flush()
+            file:close()
+        end
     end
 
-    return list
+    return funcs
 end
 
-function sl(floatoffset_from_start_x, floatspacing)
-    imgui.SameLine(floatoffset_from_start_x,floatspacing)
-end
+local sl = imgui.SameLine
 
 local update_state = false
 local checkVerify = false
@@ -63,12 +64,6 @@ local keys = {
     ['vehicle'] = {}
 }
 
-local cursorLock = false
-local mainCursor = false
-local reconCursor = false
-local menuCursor = true
-local keycapCursor = false
-
 --! origin/main
 local update_url = 'https://raw.githubusercontent.com/kyrtion/helper-report/main/version_hr.ini'
 local update_path = getWorkingDirectory() .. '/update_hr.ini'
@@ -76,7 +71,7 @@ local script_vers = tostring(thisScript().version)
 local script_url = 'https://github.com/kyrtion/helper-report/blob/main/helper-report-auto.lua?raw=true'
 local script_path = thisScript().path
 
-function join_argb(a, r, g, b)
+local function join_argb(a, r, g, b)
     local argb = b  -- b
     argb = bit.bor(argb, bit.lshift(g, 8))  -- g
     argb = bit.bor(argb, bit.lshift(r, 16)) -- r
@@ -84,7 +79,7 @@ function join_argb(a, r, g, b)
     return argb
 end
 
-function explode_argb(argb)
+local function explode_argb(argb)
     local a = bit.band(bit.rshift(argb, 24), 0xFF)
     local r = bit.band(bit.rshift(argb, 16), 0xFF)
     local g = bit.band(bit.rshift(argb, 8), 0xFF)
@@ -92,11 +87,11 @@ function explode_argb(argb)
     return a, r, g, b
 end
 
-function intToHex(int)
+local function intToHex(int)
     return '{'..string.sub(bit.tohex(int), 3, 8)..'}'
 end
 
-function alert(arg) sampAddChatMessage('[Helper-Report] {ffd0b0}'..arg, 0xffa86e) end
+local function alert(arg) sampAddChatMessage('[Helper-Report] {ffd0b0}'..arg, 0xffa86e) end
 
 if not doesDirectoryExist('moonloader/config') then createDirectory('moonloader/config') end
 if not doesDirectoryExist('moonloader/config/helper-report') then createDirectory ('moonloader/config/helper-report') end
@@ -109,26 +104,25 @@ local imguiList = {}
 local mainWindow = new.bool(false)
 local menuWindow = new.bool(false)
 local reconWindow = new.bool(false)
-local keycapWindow = new.bool(false)
+-- local keycapWindow = new.bool(false)
 
 local selectPm = new.bool(true)
 local statusSkip = new.bool(false)
 local reportInput = new.char[140]('')
-local reportInputAuthor = new.char[140]('')
-local reportInputID = new.char[140]('')
+-- local reportInputAuthor = new.char[140]('')
+-- local reportInputID = new.char[140]('')
 local listReport = {}
 local statusRecon = false
 local selectedAZ = -1
 local lockDefine = false
-local lockWindow = false
 local lockRecon = false
-local playerIdRecon = -1
+-- local playerIdRecon = -1
 local checkVersion = false
 local closePop = false
 local selectedIntButton = -1
 local sizeButtonPopup = imgui.ImVec2(170,0)
 local tab = new.int(1)
-local reconPlayerTip, reconPlayerNick, reconId, blockId, target, statusReconButton = 'None', 'None', -1, -1, -1, false
+local reconPlayerTip, reconPlayerNick, reconId, blockId, targetPed, statusReconButton = 'None', 'None', -1, -1, -1, false
 
 local slist = {
     title = '',
@@ -149,10 +143,8 @@ local sfist = {
 }
 
 local intCountReport = 0
-local boolCountReport = false
 local new_text = ''
 local old_text = ''
-local commandText = ''
 local commandImgui = new.char[1000](u8[[/pm @aid Приятной игры
 /givegun @aid 24 228
 /getstats @aid
@@ -254,11 +246,56 @@ if not doesFileExist(settingsJson) then
     json(settingsJson):write(list)
 end
 
-local settingsList = json(settingsJson):read()
+settingsList = json(settingsJson):read()
 
-function save()
+-- #locals
+local function bringVec4To(from, dest, start_time, duration)
+    local timer = os.clock() - start_time
+    if timer >= 0.00 and timer <= duration then
+        local count = timer / (duration / 100)
+        return imgui.ImVec4(
+            from.x + (count * (dest.x - from.x) / 100),
+            from.y + (count * (dest.y - from.y) / 100),
+            from.z + (count * (dest.z - from.z) / 100),
+            from.w + (count * (dest.w - from.w) / 100)
+        ), true
+    end
+    return (timer > duration) and dest or from, false
+end
+
+local function setTarget(arg)
+    arg = tonumber(arg)
+    if arg ~= nil and sampIsPlayerConnected(tonumber(arg)) then
+        local pedExist, ped = sampGetCharHandleBySampPlayerId(arg)
+        if pedExist then
+            targetPed = ped
+            return true
+        end
+        return
+    end
+end
+
+local function save()
     json(settingsJson):write(settingsList)
     settingsList = json(settingsJson):read()
+end
+
+local function sampGetPlayerIdByNickname(arg1)
+    arg1 = tostring(arg1)
+    local _, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
+    if arg1 == sampGetPlayerNickname(myid) then 
+        return myid
+    end
+    -- if not sampIsPlayerConnected(arg1) then return -1 end
+    local d = 1003
+    for i = 0, d do
+        if sampIsPlayerConnected(i) and sampGetPlayerNickname(i) == arg1 then
+            return i
+        end
+        if i == d then
+            return '?'
+        end
+    end
 end
 
 if settingsList.version == nil or settingsList.version ~= version_json then
@@ -269,7 +306,7 @@ if settingsList.version == nil or settingsList.version ~= version_json then
     save()
 end
 
-local imguiList = {
+imguiList = {
     settings = {
         closeReport = new.bool(settingsList.settings.closeReport),
         closeIfLeaved = new.bool(settingsList.settings.closeIfLeaved), -- кроме последний репорт
@@ -317,21 +354,35 @@ local imguiList = {
 local posX, posY = settingsList.settings2.positionX, settingsList.settings2.positionY
 local u32 = imgui.ColorConvertFloat4ToU32
 
+local function getTimerFormat(seconds) -- time
+    -- return os.date('%H:%M:%S', 86400 - get_timezone() + time) -- 1.0
+    -- return os.date('%H:%M:%S', 86400 - os.difftime(86400, os.time(os.date('!*t', 86400))) + time) -- 2.0
+    return string.format('%02d:%02d:%02d', math.floor(seconds / 3600), math.floor((seconds % 3600) / 60), seconds % 60)
+end
+
+local function removeReport(array, bool)
+    if #listReport ~= 0 then
+        table.remove(listReport, array)
+    end
+    if bool then
+        selectPm[0] = true
+        statusSkip[0] = false
+    end
+end
+
 imgui.OnInitialize(function()
     imgui.GetIO().IniFilename = nil
     imgui.DarkTheme()
 end)
 
 local mainFrame = imgui.OnFrame(function() return mainWindow[0] and not isPauseMenuActive() end, function()
-    local resX, resY = getScreenResolution()
     local sizeX, sizeY = 505, 160
     imgui.SetNextWindowPos(imgui.ImVec2(posX, posY), imgui.Cond.Always)
     imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.Always)
     if imgui.Begin('##MainMain', mainWindow, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoFocusOnAppearing) then
         if #listReport ~= 0 then
             if listReport[1].msg:find('(%d+)') and sampIsPlayerConnected(tonumber(listReport[1].msg:match('(%d+)'))) then
-                local sId = listReport[1].msg:match('(%d+)')
-                local sId = tonumber(sId)
+                local sId = tonumber(listReport[1].msg:match('(%d+)'))
                 imgui.Columns(2, '##Author-Punisher', true)
                 if imgui.Selectable(u8('Автор: '..listReport[1].nick..'['..listReport[1].id..']', false)) then
                     imgui.OpenPopup('##MenuAuthor')
@@ -373,8 +424,8 @@ local mainFrame = imgui.OnFrame(function() return mainWindow[0] and not isPauseM
 
             imgui.SetCursorPosX(306)
             if imgui.Button(u8'POS', imgui.ImVec2(42, 0)) then
-                lua_thread.create(function ()
-                    checkCursor = true
+                lua_thread.create(function()
+                    local checkCursor = true
                     -- sampSetCursorMode(4)
                     alert('Нажмите \'SPACE\' чтобы сохранить позицию')
                     -- local lock = false
@@ -431,7 +482,7 @@ local mainFrame = imgui.OnFrame(function() return mainWindow[0] and not isPauseM
 
             imgui.SameLine()
             imgui.SetCursorPosX(sizeX-57)
-            imgui.Text(get_timer(listReport[1].timer))
+            imgui.Text(getTimerFormat(listReport[1].timer))
 
             imgui.PushItemWidth(sizeX - 10)
             if imgui.InputText(u8'##reportInput', reportInput, sizeof(reportInput), imgui.InputTextFlags.EnterReturnsTrue + imgui.InputTextFlags.None) then
@@ -475,7 +526,7 @@ local mainFrame = imgui.OnFrame(function() return mainWindow[0] and not isPauseM
                                 if settingsList.settings.autoSelectSms then selectPm[0] = false end
                                 -- if settingsList.settings.hideCursorIfRecon then sampSetCursorMode(0) end
                                 alert('Вы наблюдаете на '..sampGetPlayerNickname(reId)..'['..reId..']')
-                                sampSendChat('/re '..reId, -1)
+                                sampSendChat('/re '..reId)
                                 if not listReport[1].recon then
                                     listReport[1].recon = true
                                     lua_thread.create(function()
@@ -501,9 +552,11 @@ local mainFrame = imgui.OnFrame(function() return mainWindow[0] and not isPauseM
                 end
                 if imgui.BeginPopupModal(u8'Ответы', false, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoMove + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.AlwaysAutoResize) then
                     imgui.Text(u8('Удержите \'левый Ctrl\' и нажмите серые кнопки, если сделал то после ответа сразу скипает репорт'))
+                    imgui.NewLine()
+
                     for i=1, #settingsList.buttons do
                         local statusS = false
-                        if isKeyDown(0xA2) then statusS = true else statusS = false end
+                        if isKeyDown(0xA2) then statusS = true end
                         local findPm = false
                         for n=1, #settingsList.buttons[i].command do
                             if (settingsList.buttons[i].command[n]):find('^%/pm') then
@@ -517,7 +570,7 @@ local mainFrame = imgui.OnFrame(function() return mainWindow[0] and not isPauseM
                             imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.34, 0.42, 0.51, 0.6))
                         end
 
-                        if imgui.Button(u8(settingsList.buttons[i].title..(findPm and ' [PM]' or '')), sizeButtonPopup) then
+                        if imgui.Button(u8(settingsList.buttons[i].title..(findPm and ' [PM]' or '')..'##C'..i), sizeButtonPopup) then
                             if not listReport[1].recon then listReport[1].recon = true end
                             lua_thread.create(function()
                                 local status = statusS
@@ -557,29 +610,31 @@ local mainFrame = imgui.OnFrame(function() return mainWindow[0] and not isPauseM
                         findPm = false
                     end
 
-                    for n=1, 5 do
-                        imgui.SetCursorPos(imgui.ImVec2(3,3))
-                        imgui.SameLine()
-                        imgui.InvisibleButton('f##bb'..n, imgui.ImVec2(0.01,0.01))
-                    end
-                    imgui.Separator()
-                    if imgui.Button(u8'Закрыть', imgui.ImVec2(imgui.GetWindowSize().x-10, 0)) then
+                    -- for n=1, 5 do
+                    --     imgui.SetCursorPos(imgui.ImVec2(3,3))
+                    --     imgui.SameLine()
+                    --     imgui.InvisibleButton('f##bb'..n, imgui.ImVec2(0.01,0.01))
+                    -- end
+
+                    imgui.NewLine()
+                    if imgui.Button(u8'Закрыть', imgui.ImVec2(imgui.GetWindowContentRegionWidth(), 0)) then
                         imgui.CloseCurrentPopup()
                     end
                     if isKeyDown(0x1B) then
                         imgui.CloseCurrentPopup()
                     end
+                    imgui.EndPopup()
                 end
                 imgui.SameLine()
                 if #u8:decode(str(reportInput)) == 0 or u8:decode(str(reportInput)):find('^%s+$') then
                     imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(1.00, 0.25, 0.25, 1.0))
                     imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.00, 0.25, 0.25, 0.9))
                     imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(1.00, 0.25, 0.25, 0.8))
-                    if imgui.Button(u8'Закрыть', imgui.ImVec2(120, 0)) then
-                        print('{F2B0B0}Пропущено: '..u8:decode(str(reportInput)))
+                    if imgui.Button(u8'Пропустить', imgui.ImVec2(120, 0)) then
+                        -- print('{F2B0B0}Пропущено с ответом: '..u8:decode(str(reportInput)))
                         reportInput = new.char[256]('')
                         removeReport(1, true)
-                    end 
+                    end
                     imgui.PopStyleColor(3)
                 else
                     imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.2, 0.77, 0.33, 1.0))
@@ -609,7 +664,7 @@ local mainFrame = imgui.OnFrame(function() return mainWindow[0] and not isPauseM
                         else
                             alert('Автор не в сети!')
                         end
-                    end 
+                    end
                     imgui.PopStyleColor(3)
                 end
 
@@ -631,7 +686,7 @@ local mainFrame = imgui.OnFrame(function() return mainWindow[0] and not isPauseM
                             imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.34, 0.42, 0.51, 0.7))
                             imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.34, 0.42, 0.51, 0.6))
                         end
-                        if imgui.Button(u8(settingsList.buttons[i].title..(findPm and ' [PM]' or '')), sizeButtonPopup) then
+                        if imgui.Button(u8(settingsList.buttons[i].title..(findPm and ' [PM]' or '')..'##B'..i), sizeButtonPopup) then
                             if not listReport[1].recon then listReport[1].recon = true end
                             lua_thread.create(function()
                                 local status = statusS
@@ -671,7 +726,6 @@ local mainFrame = imgui.OnFrame(function() return mainWindow[0] and not isPauseM
                         findPm = false
                     end
                 end
-                
 
                 -- end
                 if imgui.BeginPopup('##MenuAuthor', imgui.WindowFlags.NoMove) then
@@ -1118,8 +1172,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                 imgui.CenterText(u8'Чаты')
                 imgui.SetCursorPosY(34)
                 imgui.Separator()
-                imgui.Text(u8('Формат админский чат: ' ..
-                ((u8:decode(str(imguiList.settings2.textFormatAdminChat))):gsub('@prefix', 'Руководитель'):gsub('@nick', sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(PLAYER_PED)))):gsub('@id', select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))):gsub('@msg', 'Hello world!'))))
+                imgui.Text(u8('Формат админский чат: ' .. ((u8:decode(str(imguiList.settings2.textFormatAdminChat))):gsub('@prefix', 'Руководитель'):gsub('@nick', sampGetPlayerNickname(select(2, sampGetPlayerIdByCharHandle(PLAYER_PED)))):gsub('@id', select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))):gsub('@msg', 'Hello world!'))))
                 if imgui.Button(u8'Сброс##textFormatAdminChat') then
                     settingsList.settings2.textFormatAdminChat = defaultJson.settings2.textFormatAdminChat
                     imguiList.settings2.textFormatAdminChat = new.char[255](settingsList.settings2.textFormatAdminChat)
@@ -1211,7 +1264,6 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     save()
                 end
 
-
                 if imgui.Checkbox('##boolAdminChatNick', imguiList.settings2.boolAdminChatNick) then
                     settingsList.settings2.boolAdminChatNick = imguiList.settings2.boolAdminChatNick[0]
                     save()
@@ -1251,7 +1303,6 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                     imguiList.settings2.colorAdminChatText[1] * 255, b = imguiList.settings2.colorAdminChatText[2] * 255, a = 255 }
                     save()
                 end
-
 
                 if imgui.Checkbox('##boolAntiCheat', imguiList.settings2.boolAntiCheat) then
                     settingsList.settings2.boolAntiCheat = imguiList.settings2.boolAntiCheat[0]
@@ -1315,7 +1366,6 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                 imgui.CenterText(u8'Ответы')
                 imgui.SetCursorPos(imgui.ImVec2(sizeX - 217, 5))
                 if imgui.Button(u8'Создать') then
-                    commandText = ''
                     commandImgui = newCommandImgui
                     sfist = {
                         title = new.char[256](slist.title),
@@ -1333,7 +1383,7 @@ local menuFrame = imgui.OnFrame(function() return menuWindow[0] and not isPauseM
                 if #settingsList.buttons ~= 0 then
                     for i = 1, #settingsList.buttons do
                         local sizeButton = imgui.ImVec2(240, 0)
-                        if imgui.Button(u8(settingsList.buttons[i].title), sizeButton) then
+                        if imgui.Button(u8(settingsList.buttons[i].title..'##A'..i), sizeButton) then
                             imgui.StrCopy(sfist.title, u8(settingsList.buttons[i].title))
                             sfist.stopRecon[0] = settingsList.buttons[i].stopRecon
                             sfist.closePopup[0] = settingsList.buttons[i].closePopup
@@ -1561,9 +1611,9 @@ local reconFrame = imgui.OnFrame(function() return reconWindow[0] and not isPaus
     imgui.SetNextWindowSize(imgui.ImVec2(500, 200), imgui.Cond.FirstUseEver)
 
     if imgui.Begin('##reconWindow', reconWindow, imgui.WindowFlags.NoMove + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoBackground) then
-        if doesCharExist(target) then
+        if doesCharExist(targetPed) then
             imgui.CenterText(reconPlayerTip..'  >>  '..reconPlayerNick..'  >>  '..reconId)
-            local plState = (isCharOnFoot(target) and 'onfoot' or 'vehicle')
+            local plState = (isCharOnFoot(targetPed) and 'onfoot' or 'vehicle')
 
             imgui.BeginGroup()
                 imgui.SetCursorPosX(10 + 25 + 5)
@@ -1610,7 +1660,7 @@ local reconFrame = imgui.OnFrame(function() return reconWindow[0] and not isPaus
             if blockId ~= -1 then
                 local pedExist, ped = sampGetCharHandleBySampPlayerId(blockId)
                 if pedExist then
-                    target = ped
+                    targetPed = ped
                 else
                     imgui.CenterText('Try find player in stream: '..tostring(sampGetPlayerNickname(blockId))..'['..blockId..']')
                 end
@@ -1806,7 +1856,6 @@ end)
 -- local keycapFrame = imgui.OnFrame(function() return reconWindow[0] and not isPauseMenuActive() end, function()
 --     imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY - 116), imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
 --     imgui.Begin('##KEYS', nil, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.AlwaysAutoResize + imgui.WindowFlags.NoBackground)
-        
 --     imgui.End()
 -- end)
 
@@ -1816,7 +1865,7 @@ reconFrame.HideCursor = true
 
 function main()
     while not isSampAvailable() do wait(0) end
-    alert('Скрипт загружен | GitHub: kyrtion.me/herep | Menu: /shr | Version: '..thisScript().version)
+    alert('Скрипт загружен | GitHub: github.com/kyrtion/helper-report | Menu: /shr | Version: '..thisScript().version)
     alert('Для появления курсора нажмите \'левый Alt\', открыть окно репорта \'P\'')
     -- memory.copy(0x4EB9A0, memory.strptr('\xC2\x04\x00'), 3, true)
     memory.write(sampGetBase() + 643864, 37008, 2, true)
@@ -1832,6 +1881,7 @@ function main()
             alert('Нажмите \'P\', чтобы скрыть окно репорта')
         end
     end)
+
     sampRegisterChatCommand('testhr', function()
         listReport = {}
         listReport[#listReport+1] = {
@@ -1848,8 +1898,8 @@ function main()
     sampRegisterChatCommand('reportpos', function()
         if not menuWindow[0] then
             if not mainWindow[0] then mainWindow[0] = not mainWindow[0] end
-            lua_thread.create(function ()
-                checkCursor = true
+            lua_thread.create(function()
+                local checkCursor = true
                 -- sampSetCursorMode(4)
                 alert('Нажмите \'SPACE\' чтобы сохранить позицию')
                 -- local lock = false
@@ -1893,13 +1943,11 @@ function main()
             alert('Повторно проверяю обновление...')
             downloadUrlToFile(update_url, update_path, function(id, status)
                 if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                    -- updateIni = {}
-                    updateIni = inicfg.load(nil, update_path)
+                    local updateIni = inicfg.load(nil, update_path) or nil
                     if updateIni ~= nil and
                     updateIni.info.version ~= nil then
                         newVersion = tostring(updateIni.info.version):gsub('"', '')
                         oldVersion = tostring(thisScript().version)
-                        -- alert('newVersion: '..newVersion..', oldVersion: '..oldVersion)
                         if newVersion ~= oldVersion then
                             alert('Есть обновление! Новая версия: '..newVersion..'. Для обновление введите /hr_verify')
                             update_state = true
@@ -1923,13 +1971,11 @@ function main()
     if boolEnableAutoUpdate then
         downloadUrlToFile(update_url, update_path, function(id, status)
             if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                -- updateIni = {}
-                updateIni = inicfg.load(nil, update_path)
+                local updateIni = inicfg.load(nil, update_path) or nil
                 if updateIni ~= nil and
                 updateIni.info.version ~= nil then
                     newVersion = tostring(updateIni.info.version):gsub('"', '')
                     oldVersion = tostring(thisScript().version)
-                    -- alert('newVersion: '..newVersion..', oldVersion: '..oldVersion)
                     if newVersion ~= oldVersion then
                         alert('Есть обновление! Новая версия: '..newVersion..'. Для обновление введите /hr_verify')
                         update_state = true
@@ -1971,23 +2017,9 @@ function main()
         if blockId ~= -1 then
             lua_thread.create(function()
                 wait(100)
-                targ(blockId)
+                setTarget(blockId)
             end)
         end
-
-        -- if sampTextdrawIsExists(2184) then -- старый способ получении текстдрав на рекон
-        --     local textdraw_string = sampTextdrawGetString(2184)
-        --     -- print(textdraw_string)
-        --     -- helper-report-auto.lua: PC_PLAYER:~N~~Y~Maksim_Grimy (249)
-        --     -- helper-report-auto.lua: ANDROID_PLAYER:~N~~Y~Nikita_Blond (35)
-        --     if textdraw_string:find('^(.+)%_PLAYER%:%~N%~%~Y%~(.+) %((.+)%)$') then
-        --         reconPlayerTip, reconPlayerNick, reconId = textdraw_string:match('^(.+)%_PLAYER%:%~N%~%~Y%~(.+) %((.+)%)$')
-        --         if blockId ~= reconId then
-        --             reconWindow[0] = true
-        --             blockId = tonumber(reconId)
-        --         end
-        --     end
-        -- end
 
         if boolEnableAutoUpdate and update_state and checkVerify then
             downloadUrlToFile(script_url, script_path, function(id, status)
@@ -1999,9 +2031,11 @@ function main()
             end)
             break
         end
+
         if isKeyJustPressed(vkeys.VK_P) and not menuWindow[0] and not sampIsDialogActive() and not sampIsChatInputActive() and not isPauseMenuActive() and not isSampfuncsConsoleActive() then
             mainWindow[0] = not mainWindow[0]
         end
+
         if #listReport ~= 0 and not listReport[1].status and not menuWindow[0] and settingsList.settings.showNewReport then
             if settingsList.settings.closeReport then statusSkip[0] = true end
             listReport[1].status = true
@@ -2012,16 +2046,19 @@ function main()
             listReport[1].status = true
             selectPm[0] = true
         end
-        renderFontDrawText(font, 'Active Reports: '..#listReport, 10, resY-24, 0xFFFFFFFF)
-        if #listReport ~= 0 and not mainWindow[0] then
-            renderFontDrawText(font, 'Session: '..get_timer(listReport[1].timer), 105, resY-24, 0xFFFFFFFF)
+
+        if sampGetChatDisplayMode() ~= 0 then
+            renderFontDrawText(font, 'Active Reports: '..#listReport, 10, resY-24, 0xFFFFFFFF)
+            if #listReport ~= 0 and not mainWindow[0] then
+                renderFontDrawText(font, 'Session: '..getTimerFormat(listReport[1].timer), 155, resY-24, 0xFFFFFFFF)
+            end
         end
     end
 end
 
 function imgui.NewInputText(lable, val, width, hint, hintpos)
-    local hint = hint and hint or ''
-    local hintpos = tonumber(hintpos) and tonumber(hintpos) or 1
+    hint = hint and hint or ''
+    hintpos = tonumber(hintpos) and tonumber(hintpos) or 1
     local cPos = imgui.GetCursorPos()
     imgui.PushItemWidth(width)
     local result = imgui.InputText(lable, val, sizeof(val))
@@ -2036,18 +2073,8 @@ function imgui.NewInputText(lable, val, width, hint, hintpos)
     return result
 end
 
-function removeReport(array, bool)
-    if #listReport ~= 0 then
-        table.remove(listReport, array)
-    end
-    if bool then
-        selectPm[0] = true
-        statusSkip[0] = false
-    end
-end
-
 function sampev.onPlayerQuit(playerId, reason)
-    local playerId = tonumber(playerId)
+    playerId = tonumber(playerId)
     if #listReport ~= 0 then
         for i=1, #listReport do
             local idAuthor = tonumber(listReport[i].id)
@@ -2123,30 +2150,9 @@ function imgui.TextColoredRGB(text)
     render_text(text)
 end
 
-function get_timer(seconds) -- time
-    -- return os.date('%H:%M:%S', 86400 - get_timezone() + time) -- 1.0
-    -- return os.date('%H:%M:%S', 86400 - os.difftime(86400, os.time(os.date('!*t', 86400))) + time) -- 2.0
-    return string.format('%02d:%02d:%02d', math.floor(seconds / 3600), math.floor((seconds % 3600) / 60), seconds % 60)
-end
-
-function sampGetListboxItemText(str, item)
-    local num_ = 0
-    for str in string.gmatch(str, '[^\r\n]+') do
-        if item == num_ then return str end
-        num_ = num_ + 1
-    end
-    return false
-end
-
-function sampGetListboxItemsCount(text)
-    local i = 0
-    for _ in text:gmatch('.-\n') do i = i + 1 end
-    return i
-end
-
 function sampev.onShowDialog(dialogId, style, title, button1, button2, text)
-    if lockDefine and dialogId == 228 and style == 4 and title:gsub('{......}', ''):find('Репорт') then
-        text = text:gsub('{......}', '')
+    if lockDefine and dialogId == 228 and style == 4 and title:gsub('{%x%x%x%x%x%x}', ''):find('Репорт') then
+        text = text:gsub('{%x%x%x%x%x%x}', '')
         lockDefine = false
         intCountReport = 0
         listReport = {}
@@ -2188,25 +2194,24 @@ function sampev.onTogglePlayerSpectating(bool)
     end
     -- reconWindow[0] = bool
     if not bool then
-        target = -1
+        targetPed = -1
         blockId = -1
     end
 end
 
-function sampev.onSpectatePlayer(playerId, camType)
-    playerIdRecon = playerId
-end
-
-function sampev.onShowMenu()
-    if lockRecon and playerIdRecon ~= -1 then
+function sampev.onSendChat(message)
+    if statusRecon and blockId ~= -1 then
+        sampSendChat(string.format('/sms %s %s', blockId, message))
         return false
     end
 end
 
-function sampev.onHideMenu()
-    if lockRecon and playerIdRecon ~= -1 then
-        return false
-    end
+-- function sampev.onSpectatePlayer(playerId, camType)
+--     playerIdRecon = playerId
+-- end
+
+function sampev.onShowMenu(menuId)
+    if menuId == 4 then return false end
 end
 
 function sampev.onSendSpawn()
@@ -2226,22 +2231,10 @@ function sampev.onSendSpawn()
     end
 end
 
-function targ(arg)
-    arg = tonumber(arg)
-    if arg ~= nil and sampIsPlayerConnected(tonumber(arg)) then
-        local pedExist, ped = sampGetCharHandleBySampPlayerId(arg)
-        if pedExist then
-            target = ped
-            return true
-        end
-        return
-    end
-end
-
 -- добавлен новый альтернативный способ на получении ид рекона
 function sampev.onShowTextDraw(textdrawId, data)
     -- -2139062144   -16777216   PC_PLAYER:~N~~R~klop_(108)   2210
-    print(data.boxColor, data.backgroundColor, data.text, textdrawId)
+    -- print(data.boxColor, data.backgroundColor, data.text, textdrawId) -- debug
 	if data.text and data.text:find('PLAYER:.+.%(%d+%)$') and data.boxColor == -2139062144 and data.backgroundColor == -16777216 then
         reconPlayerTip, reconPlayerNick, reconId = data.text:match('^(.+)%_PLAYER%:.+%~(.+).%((.+)%)$')
         if blockId ~= reconId then
@@ -2249,13 +2242,13 @@ function sampev.onShowTextDraw(textdrawId, data)
             blockId = tonumber(reconId)
         end
 		-- local id = tonumber(data.text:match('PLAYER:.+%s%((%d+)%)$'))
-        -- targ(id)
+        -- setTarget(id)
         -- blockId = tonumber(id)
     end
 end
 
 function sampev.onPlayerSync(playerId, data)
-    local result, id = sampGetPlayerIdByCharHandle(target)
+    local result, id = sampGetPlayerIdByCharHandle(targetPed)
     if result and id == playerId then
         keys['onfoot'] = {}
 
@@ -2276,7 +2269,7 @@ function sampev.onPlayerSync(playerId, data)
 end
 
 function sampev.onVehicleSync(playerId, vehicleId, data)
-    local result, id = sampGetPlayerIdByCharHandle(target)
+    local result, id = sampGetPlayerIdByCharHandle(targetPed)
     if result and id == playerId then
         keys['vehicle'] = {}
 
@@ -2298,28 +2291,40 @@ function sampev.onVehicleSync(playerId, vehicleId, data)
     end
 end
 
+local blackListChat = {
+    -- { color = nil, noHex = true, find = true, text = '^%s*$' },
+    { color = nil, noHex = true, find = true, text = '^%s*$' },
+    { color = 13304063, noHex = true, find = true, text = '^. russia%-samp%.ru . .+' },
+    { color = 13304063, noHex = true, find = true, text = '^. АКЦИЯ . .+' },
+    { color = 13304063, noHex = true, find = true, text = '^. НИЗКИЕ ЦЕНЫ . .+' },
+    { color = -520093782, noHex = true, find = true, text = '^<< Vladimir_Putin: .+' },
+    { color = -1191240961, noHex = true, find = true, text = '^%[.%] Сегодня низкие цены в админ%-магазине .+' },
+    { color = -1191240961, noHex = true, find = true, text = '^%[.%] Чтобы пополнить игровой сч[е|ё]+т, перейдите на .*' },
+    { color = -1347440726, noHex = true, find = true, text = '^Для того, чтобы закончить слежку за игроком, введите: .*' },
+    { color = nil, noHex = true, find = true, text = '^Ник: %[.-%]$' },
+    { color = -1199174657, noHex = true, find = true, text = '^%[UPDATE%]: [Для повышения своего уровня|Также, в магазине для администрации]+' },
+    { color = -86, noHex = true, find = true, text = '^%s*Вы получили админ.зарплату, в размере %d+ донат.очков$' },
+    { color = -356056918, noHex = true, find = false, text = 'БАНКОВСКИЙ ЧЕК.' },
+    { color = -356056918, noHex = true, find = true, text = '^%s*Текущий баланс: %$.-%d+$' },
+    { color = -7587926, noHex = true, find = true, text = '^%s*Налог государству: %$.-%d+$' },
+    { color = -7587926, noHex = true, find = true, text = '^%s*Счет за телефон: .*' },
+    { color = -7587926, noHex = true, find = true, text = '^%s*Зарплата: %$.-%d+$' },
+    { color = 869072810, noHex = false, find = false, text = 'Вы получили дополнительный EXP, за счёт VIP-аккаунта.' },
+    { color = -356056918, noHex = true, find = false, text = '____________________________________' },
+    { color = -1263159297, noHex = true, find = false, text = '____________________________________' },
+}
+
 function sampev.onServerMessage(color, text)
-    -- print(text)
+
     if settingsList.settings.hideAd then
-        if text == ('' or '%s+' or '%s') then return false
-        elseif color == -520093782 and (
-            text == '<< Vladimir_Putin: {F04245}АКЦИЯ! {F04245}АКЦИЯ! {F04245}АКЦИЯ! {E0FFFF}>>' or
-            text == '<< Vladimir_Putin: {E0FFFF}Низкие цены на привилегии только сегодня! (/donaterub) >>' or
-            text == '<< Vladimir_Putin: {E0FFFF}Cтань ВЛАДЕЛЬЦЕМ сервера (Полный доступ) {F04245}всего за 2990 рублей! {E0FFFF}>>' or
-            text == '<< Vladimir_Putin: {E0FFFF}Для покупки используйте команду — /buyowner >>' or
-            text == '<< Vladimir_Putin: {E0FFFF}Не упустите такую возможность! >>'
-        ) then return false
-        elseif color == -1191240961 and (
-            text == '[A] Сегодня низкие цены в админ-магазине (/adonate)' or
-            text == '[A] Чтобы пополнить игровой счёт, перейдите на наш сайт (russia-samp.ru)'
-        ) then return false
-        elseif color == 13304063 and (text:find('russia%-samp%.ru') or text:find('АКЦИЯ') or text:find('НИЗКИЕ ЦЕНЫ') or text:find('чтобы онлайн побыстрее набрался')) then return false
-        elseif color == -1199174657 and (
-            text == '[UPDATE]: Для повышения своего уровня админ-прав, используйте: /adonate' or
-            text == '[UPDATE]: Также, в магазине для администрации скидки, подробнее: /adonate'
-        ) then return false
-        elseif color == -1347440726 and text == 'Для того, чтобы закончить слежку за игроком, введите: \'/re off\'' then
-            return false
+        for _, CHAT in ipairs(blackListChat) do
+            local checkColor = not CHAT.color or color == CHAT.color
+            local checkText = CHAT.noHex and text:gsub('{%x%x%x%x%x%x}', '') or text
+            checkText = CHAT.find and checkText:find(CHAT.text) or checkText == CHAT.text
+
+            if checkColor and checkText then
+            return true
+            end
         end
     end
 
@@ -2335,9 +2340,9 @@ function sampev.onServerMessage(color, text)
         end
     end
 
-    if color == -578720769 and text:find('^[Жалоба|Репорт]+ от (.+)%[(%d+)%]%: (.+)$') then
+    if color == -578720769 and text:find('^[Жалоба от|Репорт от]+ (.+)%[(%d+)%]%: (.+)$') then
         intCountReport = intCountReport + 1
-        local RTNick, RTId, RTMsg = text:gsub('{......}', ''):match('^[Жалоба|Репорт]+ от (.+)%[(%d+)%]%: (.*)$')
+        local RTNick, RTId, RTMsg = text:gsub('{%x%x%x%x%x%x}', ''):match('^[Жалоба от|Репорт от]+ (.+)%[(%d+)%]%: (.*)$')
         listReport[#listReport+1] = {
             nick = RTNick,
             id = RTId,
@@ -2348,8 +2353,8 @@ function sampev.onServerMessage(color, text)
             boolCount = false
         }
         print('{FF0000}Added[t'..(#listReport)..']: '..RTNick..' '..RTId..' '..RTMsg)
-    elseif color == -270686209 and text:find('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%: %{FFFFFF%}(.+)$') then
-        local PMAdminNick, PMAdminId, PMNick, PMId, PMMsg = text:match('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%: %{FFFFFF%}(.+)$')
+    elseif color == -270686209 and text:find('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%: {FFFFFF}(.+)$') then
+        local PMAdminNick, PMAdminId, PMNick, PMId, PMMsg = text:match('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%: {FFFFFF}(.+)$')
         print('{FF00FF}PM: '..PMAdminNick..'['..PMAdminId..'] -> '..PMNick..'['..PMId..']: '..PMMsg)
         for i=1, #listReport do
             if listReport[i].nick == PMNick and listReport[i].id == PMId and not listReport[i].boolCount then
@@ -2373,8 +2378,8 @@ function sampev.onServerMessage(color, text)
 
     -- (-270686209) || [A] Snegovik_Ya[1] ответил игроку Vadim_Rampage[7]: {FFFFFF}test
     if settingsList.settings2.boolPMNick and color == -270686209 and text:find('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%: (.*)$') then
-        local admin, aid, nick, nid, msg = text:gsub('{......}', ''):match('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%: (.*)$')
-        local ftext = '[PM] '..admin..'['..aid..'] > '..nick..'['..nid..']: '..(settingsList.settings2.boolPMText and intToHex(join_argb(settingsList.settings2.colorPMText.a, settingsList.settings2.colorPMText.r, settingsList.settings2.colorPMText.g, settingsList.settings2.colorPMText.b)) or '')..msg
+        local admin, aid, nick, nid, msg = text:gsub('{%x%x%x%x%x%x}', ''):match('^%[A%] (.+)%[(%d+)%] ответил игроку (.+)%[(%d+)%]%: (.*)$')
+        local ftext = admin..'['..aid..'] » '..nick..'['..nid..']: '..(settingsList.settings2.boolPMText and intToHex(join_argb(settingsList.settings2.colorPMText.a, settingsList.settings2.colorPMText.r, settingsList.settings2.colorPMText.g, settingsList.settings2.colorPMText.b)) or '')..msg
         sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPMNick.a, settingsList.settings2.colorPMNick.r, settingsList.settings2.colorPMNick.g, settingsList.settings2.colorPMNick.b))
         return false
     end
@@ -2382,7 +2387,7 @@ function sampev.onServerMessage(color, text)
     -- (-578720769) || Репорт от Snegovik_Ya[1]: {FFFFFF}asd
     if settingsList.settings2.boolReportNick and color == -578720769 and text:find('^Репорт от (.+)%[(%d+)%]%: (.*)$') then
         local nick, id, msg = text:match('^Репорт от (.+)%[(%d+)%]%: (.+)$')
-        msg = (settingsList.settings2.boolReportText and intToHex(join_argb(settingsList.settings2.colorReportText.a, settingsList.settings2.colorReportText.r, settingsList.settings2.colorReportText.g, settingsList.settings2.colorReportText.b)) or '')..msg:gsub('^%{FFFFFF%}', '')
+        msg = (settingsList.settings2.boolReportText and intToHex(join_argb(settingsList.settings2.colorReportText.a, settingsList.settings2.colorReportText.r, settingsList.settings2.colorReportText.g, settingsList.settings2.colorReportText.b)) or '')..msg:gsub('^{FFFFFF}', '')
         local ftext = 'Репорт от '..nick..'['..id..']: '..msg..'. Уже '..intCountReport..' репортов!'
         sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorReportNick.a, settingsList.settings2.colorReportNick.r, settingsList.settings2.colorReportNick.g, settingsList.settings2.colorReportNick.b))
         return false
@@ -2479,7 +2484,7 @@ function sampev.onServerMessage(color, text)
                 sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
                 return false
                 -- end
-            -- (-10270806) || Администратор Jake_Human кикнул Prainik_Medvedeva. Причина: помеха. 
+            -- (-10270806) || Администратор Jake_Human кикнул Prainik_Medvedeva. Причина: помеха.
             -- (-10270806) || Администратор Mikhail_Stewart кикнул Mikhail_Stewart. Причина: тест
             elseif text:find('^Администратор (.+) кикнул (.+)%. Причина%:(.+)') then
                 local admin, nick, reason = text:match('^Администратор (.+) кикнул (.+)%. Причина%:(.+)')
@@ -2520,35 +2525,33 @@ function sampev.onServerMessage(color, text)
             end
         end
 
-        if color == -10270806 and text:gsub('{......}', ''):find('^Ник%: %[(.-)%]') then
+        if color == -10270806 and text:gsub('{%x%x%x%x%x%x}', ''):find('^Ник%: %[(.-)%]') then
             return false
         end
     end
 
     if settingsList.settings2.boolAdminChatNick then
+        local clr = settingsList.settings2.colorAdminChatNick
         -- (-1191240961) || [A-11] Snegovik_Ya[13]: asd
-        if color == -1191240961 and text:find('^%[(.*)%] (.+)%[(%d+)%]%:(.*)') then
-            if settingsList.settings2.boolFormatAdminChat then
-                local prefix, nick, id, msg = text:match('^%[(.*)%] (.+)%[(%d+)%]%:(.*)')
-                local msg = msg:gsub('^ ', '') or '*не указана*'
-                local msg = (settingsList.settings2.boolAdminChatText and intToHex(join_argb(settingsList.settings2.colorAdminChatText.a, settingsList.settings2.colorAdminChatText.r, settingsList.settings2.colorAdminChatText.g, settingsList.settings2.colorAdminChatText.b)))..msg
-                -- local prefix = prefix:gsub('A%-', '')
-                local ftext = (settingsList.settings2.textFormatAdminChat):gsub('@prefix', prefix):gsub('@nick', nick):gsub('@id', id):gsub('@msg', msg)
-                sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorAdminChatNick.a, settingsList.settings2.colorAdminChatNick.r, settingsList.settings2.colorAdminChatNick.g, settingsList.settings2.colorAdminChatNick.b))
-                return false
-            else
-                sampAddChatMessage(text:gsub('%{......%}', ''), join_argb(settingsList.settings2.colorAdminChatNick.a, settingsList.settings2.colorAdminChatNick.r, settingsList.settings2.colorAdminChatNick.g, settingsList.settings2.colorAdminChatNick.b))
-                return false
-            end
+        if color == -1191240961 and text:find('^%[.-%] .-%[%d+%]%:%s*.*') then
+            -- if settingsList.settings2.boolFormatAdminChat then
+            --     local prefix, nick, id, msg = text:match('^%[(.-)%] (.-)%[(%d+)%]%:%s*(.*)')
+            --     local ftext = settingsList.settings2.textFormatAdminChat:gsub('@prefix', prefix):gsub('@nick', nick):gsub('@id', id):gsub('@msg', msg)
+            --     sampAddChatMessage(ftext, join_argb(clr.a, clr.r, clr.g, clr.b))
+            --     return false
+            -- else
+            sampAddChatMessage(text, join_argb(clr.a, clr.r, clr.g, clr.b))
+            return false
+            -- end
         -- (-86) || {B8FF1A}[A] Salvadore_Harley отключился (13 уровень) | Отыграл:  2:06
-        elseif color == -86 and text:find('^%{......}%[A%] (.+) отключился %((%d+) уровень%) | Отыграл%:  (%d+)%:(%d+)$') then
-            local ftext = text:gsub('%{......%}', ''):gsub('%[A%]', '[ALogin]')
-            sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorAdminChatNick.a, settingsList.settings2.colorAdminChatNick.r, settingsList.settings2.colorAdminChatNick.g, settingsList.settings2.colorAdminChatNick.b))
+        elseif color == -86 and text:find('^{%x%x%x%x%x%x}%[A%] .- отключился %(%d+ уровень%) | Отыграл%:%s*%d+%:%d+$') then
+            local ftext = text:gsub('{%x%x%x%x%x%x}', ''):gsub('%[A%]', '[ALogin]')
+            sampAddChatMessage(ftext, join_argb(clr.a, clr.r, clr.g, clr.b))
             return false
         -- (-855703297) || {B8FF1A}[ALogin] Kevin_McKevi[9] авторизовался как администратор 3 уровня [Israel / Unknown]
-        elseif color == -855703297 and text:find('%[ALogin%] (.+)%[(%d+)%] авторизовался как администратор (%d+) уровня') then
-            local ftext = text:gsub('%{......%}', '')
-            sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorAdminChatNick.a, settingsList.settings2.colorAdminChatNick.r, settingsList.settings2.colorAdminChatNick.g, settingsList.settings2.colorAdminChatNick.b))
+        elseif color == -855703297 and text:find('{%x%x%x%x%x%x}%[ALogin%] .+%[%d+%] авторизовался как администратор %d+ уровня') then
+            local ftext = text:gsub('{%x%x%x%x%x%x}', '')
+            sampAddChatMessage(ftext, join_argb(clr.a, clr.r, clr.g, clr.b))
             return false
         end
     end
@@ -2580,24 +2583,6 @@ end
 --         sampToggleCursor(false)
 --     end
 -- end
-
-function sampGetPlayerIdByNickname(arg1)
-    arg1 = tostring(arg1)
-    local _, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
-    if arg1 == sampGetPlayerNickname(myid) then 
-        return myid
-    end
-    -- if not sampIsPlayerConnected(arg1) then return -1 end
-    local d = 1003
-    for i = 0, d do
-        if sampIsPlayerConnected(i) and sampGetPlayerNickname(i) == arg1 then
-            return i
-        end
-        if i == d then
-            return '?'
-        end
-    end
-end
 
 function imgui.CenterText(text)
     imgui.SetCursorPosX(imgui.GetWindowSize().x / 2 - imgui.CalcTextSize(text).x / 2)
@@ -2751,20 +2736,6 @@ function KeyCap(keyName, isPressed, size)
     DL:AddRectFilled(A, B, u32(K.color), rounding)
     -- DL:AddRect(A, B, u32(colors[false]), rounding, _, 1)
     DL:AddText(text_pos, 0xFFFFFFFF, keyName)
-end
-
-function bringVec4To(from, dest, start_time, duration)
-    local timer = os.clock() - start_time
-    if timer >= 0.00 and timer <= duration then
-        local count = timer / (duration / 100)
-        return imgui.ImVec4(
-            from.x + (count * (dest.x - from.x) / 100),
-            from.y + (count * (dest.y - from.y) / 100),
-            from.z + (count * (dest.z - from.z) / 100),
-            from.w + (count * (dest.w - from.w) / 100)
-        ), true
-    end
-    return (timer > duration) and dest or from, false
 end
 
 function onScriptTerminate(s, q)
