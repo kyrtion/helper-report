@@ -1,5 +1,5 @@
 --- Хейтеры, как вы меня заЫбали, идите нахЫй! ---
-local version_str = '3.8'
+local version_str = '3.8.1'
 local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
@@ -2315,7 +2315,6 @@ local blackListChat = {
 }
 
 function sampev.onServerMessage(color, text)
-
     if settingsList.settings.hideAd then
         for _, CHAT in ipairs(blackListChat) do
             local checkColor = not CHAT.color or color == CHAT.color
@@ -2323,7 +2322,7 @@ function sampev.onServerMessage(color, text)
             checkText = CHAT.find and checkText:find(CHAT.text) or checkText == CHAT.text
 
             if checkColor and checkText then
-            return true
+                return false
             end
         end
     end
@@ -2523,10 +2522,6 @@ function sampev.onServerMessage(color, text)
                 sampAddChatMessage(ftext, join_argb(settingsList.settings2.colorPunishment.a, settingsList.settings2.colorPunishment.r, settingsList.settings2.colorPunishment.g, settingsList.settings2.colorPunishment.b))
                 return false
             end
-        end
-
-        if color == -10270806 and text:gsub('{%x%x%x%x%x%x}', ''):find('^Ник%: %[(.-)%]') then
-            return false
         end
     end
 
