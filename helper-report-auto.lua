@@ -1,5 +1,5 @@
 --- Хейтеры, как вы меня заЫбали, идите нахЫй! ---
-local version_str = '3.8.1'
+local version_str = '3.8.2'
 local version_json = 1
 print('Version script: '..version_str..', JSON: '..version_json)
 script_author('kyrtion')
@@ -2295,12 +2295,13 @@ local blackListChat = {
     -- { color = nil, noHex = true, find = true, text = '^%s*$' },
     { color = nil, noHex = true, find = true, text = '^%s*$' },
     { color = 13304063, noHex = true, find = true, text = '^. russia%-samp%.ru . .+' },
-    { color = 13304063, noHex = true, find = true, text = '^. АКЦИЯ . .+' },
-    { color = 13304063, noHex = true, find = true, text = '^. НИЗКИЕ ЦЕНЫ . .+' },
+    { color = 13304063, noHex = true, find = true, text = '^. [АКЦИЯ|НИЗКИЕ ЦЕНЫ]+ . .+' },
+    { color = 1116075263, noHex = true, find = true, text = '^. russia%-samp%.ru . .+' },
+    { color = -756810497, noHex = true, find = true, text = '^. [АКЦИЯ|НИЗКИЕ ЦЕНЫ]+ . .+' },
     { color = -520093782, noHex = true, find = true, text = '^<< Vladimir_Putin: .+' },
     { color = -1191240961, noHex = true, find = true, text = '^%[.%] Сегодня низкие цены в админ%-магазине .+' },
     { color = -1191240961, noHex = true, find = true, text = '^%[.%] Чтобы пополнить игровой сч[е|ё]+т, перейдите на .*' },
-    { color = -1347440726, noHex = true, find = true, text = '^Для того, чтобы закончить слежку за игроком, введите: .*' },
+    { color = -1347440726, noHex = true, find = true, text = '^Для того, чтобы закончить слежку за игроком, введите' },
     { color = nil, noHex = true, find = true, text = '^Ник: %[.-%]$' },
     { color = -1199174657, noHex = true, find = true, text = '^%[UPDATE%]: [Для повышения своего уровня|Также, в магазине для администрации]+' },
     { color = -86, noHex = true, find = true, text = '^%s*Вы получили админ.зарплату, в размере %d+ донат.очков$' },
